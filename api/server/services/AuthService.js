@@ -366,6 +366,34 @@ const resetPassword = async (userId, token, password) => {
  */
 const setAuthTokens = async (userId, res, _session = null) => {
   try {
+    // Clear old cookies with previous configurations to prevent conflicts
+    // This fixes login issues for users who had cookies from before cookie config changes
+    // Clear with old attributes (sameSite: 'strict', no domain)
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+    });
+    res.clearCookie('token_provider', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+    });
+
+    // Clear with new attributes in case they exist
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
+    });
+    res.clearCookie('token_provider', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
+    });
+
     let session = _session;
     let refreshToken;
     let refreshTokenExpires;
@@ -387,13 +415,15 @@ const setAuthTokens = async (userId, res, _session = null) => {
       expires: new Date(refreshTokenExpires),
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     res.cookie('token_provider', 'librechat', {
       expires: new Date(refreshTokenExpires),
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     return token;
   } catch (error) {
@@ -431,17 +461,61 @@ const setOpenIDAuthTokens = (tokenset, res, userId) => {
       logger.error('[setOpenIDAuthTokens] No access or refresh token found in tokenset');
       return;
     }
+
+    // Clear old cookies with previous configurations to prevent conflicts
+    // Clear with old attributes (sameSite: 'strict', no domain)
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+    });
+    res.clearCookie('token_provider', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+    });
+    if (userId && isEnabled(process.env.OPENID_REUSE_TOKENS)) {
+      res.clearCookie('openid_user_id', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+      });
+    }
+
+    // Clear with new attributes in case they exist
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
+    });
+    res.clearCookie('token_provider', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
+    });
+    if (userId && isEnabled(process.env.OPENID_REUSE_TOKENS)) {
+      res.clearCookie('openid_user_id', {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'strict',
+      });
+    }
+
     res.cookie('refreshToken', tokenset.refresh_token, {
       expires: expirationDate,
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     res.cookie('token_provider', 'openid', {
       expires: expirationDate,
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: 'lax',
+      domain: process.env.COOKIE_DOMAIN || undefined,
     });
     if (userId && isEnabled(process.env.OPENID_REUSE_TOKENS)) {
       /** JWT-signed user ID cookie for image path validation when OPENID_REUSE_TOKENS is enabled */

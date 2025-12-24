@@ -82,7 +82,39 @@ const startServer = async () => {
   app.use(express.json({ limit: '3mb' }));
   app.use(express.urlencoded({ extended: true, limit: '3mb' }));
   app.use(mongoSanitize());
-  app.use(cors());
+
+  // CORS configuration with credentials support for cross-domain integration (cBioPortal)
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : ['https://chat.cbioportal.org'];
+
+  app.use(cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      // Check if origin matches any allowed origin
+      const isAllowed = allowedOrigins.some(allowed => {
+        // Exact match
+        if (origin === allowed) return true;
+        // Subdomain match (e.g., *.cbioportal.org)
+        if (allowed.startsWith('*.') && origin.endsWith(allowed.slice(1))) return true;
+        // Contains match for localhost/development
+        if (allowed.includes('localhost') && origin.includes('localhost')) return true;
+        return false;
+      });
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true, // Allow cookies to be sent cross-origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  }));
+
   app.use(cookieParser());
 
   if (!isEnabled(DISABLE_COMPRESSION)) {
