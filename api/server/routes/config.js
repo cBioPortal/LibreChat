@@ -278,7 +278,7 @@ router.get('/', async function (req, res) {
         : 0,
       ...(cloudFront ? { cloudFront } : {}),
       ...(rum ? { rum } : {}),
-      productFeedbackEnabled: !!process.env.FEEDBACK_ISSUE_SERVICE_URL,
+      productFeedbackEnabled: !!(process.env.GITHUB_FEEDBACK_TOKEN && process.env.GITHUB_FEEDBACK_REPO),
     };
 
     const webSearch = buildWebSearchConfig(appConfig);
