@@ -969,6 +969,38 @@ export function updateFeedback(
   return request.put(endpoints.feedback(conversationId, messageId), payload);
 }
 
+// Product Feedback
+export interface TProductFeedbackPayload {
+  request_id: string;
+  user: { username: string };
+  timestamp: string;
+  feedback_reason: string;
+  feedback_title: string;
+  feedback_details: string;
+  feedback_suggested_fix: string;
+  conversation: {
+    conversation_id: string;
+    message_id: string;
+    last_n_messages: unknown[];
+  };
+  metadata: {
+    librechat_version: string;
+    client: string;
+  };
+  contact?: { email: string };
+}
+
+export interface TProductFeedbackResponse {
+  issue_url: string;
+  issue_number: number;
+}
+
+export function submitProductFeedback(
+  payload: TProductFeedbackPayload,
+): Promise<TProductFeedbackResponse> {
+  return request.post(endpoints.productFeedback(), payload);
+}
+
 // 2FA
 export function enableTwoFactor(): Promise<t.TEnable2FAResponse> {
   return request.get(endpoints.enableTwoFactor());

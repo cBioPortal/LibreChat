@@ -245,7 +245,13 @@ const HoverButtons = ({
 
       {/* Feedback Buttons */}
       {!isCreatedByUser && handleFeedback != null && (
-        <Feedback handleFeedback={handleFeedback} feedback={message.feedback} isLast={isLast} />
+        <Feedback
+          handleFeedback={handleFeedback}
+          feedback={message.feedback}
+          isLast={isLast}
+          conversationId={conversation.conversationId ?? undefined}
+          messageId={message.messageId ?? undefined}
+        />
       )}
 
       {/* Regenerate Button */}

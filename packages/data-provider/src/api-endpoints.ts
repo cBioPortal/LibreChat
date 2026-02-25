@@ -366,6 +366,9 @@ export const banner = () => `${BASE_URL}/api/banner`;
 export const feedback = (conversationId: string, messageId: string) =>
   `${BASE_URL}/api/messages/${conversationId}/${messageId}/feedback`;
 
+// Product Feedback
+export const productFeedback = () => `${BASE_URL}/api/feedback/issues`;
+
 // Two-Factor Endpoints
 export const enableTwoFactor = () => `${BASE_URL}/api/auth/2fa/enable`;
 export const verifyTwoFactor = () => `${BASE_URL}/api/auth/2fa/verify`;

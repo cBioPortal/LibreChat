@@ -393,6 +393,17 @@ export const useUpdateFeedbackMutation = (
   );
 };
 
+export const useSubmitProductFeedbackMutation = (): UseMutationResult<
+  dataService.TProductFeedbackResponse,
+  Error,
+  dataService.TProductFeedbackPayload
+> => {
+  return useMutation(
+    (payload: dataService.TProductFeedbackPayload) =>
+      dataService.submitProductFeedback(payload),
+  );
+};
+
 export const useSearchPrincipalsQuery = (
   params: q.PrincipalSearchParams,
   config?: UseQueryOptions<q.PrincipalSearchResponse>,

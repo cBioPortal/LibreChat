@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import * as Ariakit from '@ariakit/react';
 import { TFeedback, TFeedbackTag, getTagsForRating } from 'librechat-data-provider';
+import { useSubmitProductFeedbackMutation } from 'librechat-data-provider/react-query';
 import {
   Button,
   OGDialog,
@@ -8,6 +9,7 @@ import {
   OGDialogTitle,
   ThumbUpIcon,
   ThumbDownIcon,
+  useToastContext,
 } from '@librechat/client';
 import {
   AlertCircle,
@@ -19,6 +21,9 @@ import {
   Lightbulb,
   Search,
 } from 'lucide-react';
+import ProductFeedbackModal, { type ProductFeedbackPayload } from './ProductFeedbackModal';
+import { useGetStartupConfig } from '~/data-provider';
+import { NotificationSeverity } from '~/common';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
@@ -26,6 +31,8 @@ interface FeedbackProps {
   handleFeedback: ({ feedback }: { feedback: TFeedback | undefined }) => void;
   feedback?: TFeedback;
   isLast?: boolean;
+  conversationId?: string;
+  messageId?: string;
 }
 
 const ICONS = {
@@ -76,21 +83,22 @@ function FeedbackButtons({
   feedback,
   onFeedback,
   onOther,
+  onReportIssue,
+  productFeedbackEnabled,
 }: {
   isLast: boolean;
   feedback?: TFeedback;
   onFeedback: (fb: TFeedback | undefined) => void;
   onOther?: () => void;
+  onReportIssue?: () => void;
+  productFeedbackEnabled?: boolean;
 }) {
   const localize = useLocalize();
   const upStore = Ariakit.usePopoverStore({ placement: 'bottom' });
-  const downStore = Ariakit.usePopoverStore({ placement: 'bottom' });
 
   const positiveTags = useMemo(() => getTagsForRating('thumbsUp'), []);
-  const negativeTags = useMemo(() => getTagsForRating('thumbsDown'), []);
 
   const upActive = feedback?.rating === 'thumbsUp' ? feedback.tag?.key : undefined;
-  const downActive = feedback?.rating === 'thumbsDown' ? feedback.tag?.key : undefined;
 
   const handleThumbsUpClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -119,26 +127,14 @@ function FeedbackButtons({
   const handleThumbsDownClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
-      if (feedback?.rating !== 'thumbsDown') {
-        downStore.toggle();
-        return;
-      }
-
-      onOther?.();
-    },
-    [feedback, onOther, downStore],
-  );
-
-  const handleDownOption = useCallback(
-    (tag: TFeedbackTag) => (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      downStore.hide();
-      onFeedback({ rating: 'thumbsDown', tag });
-      if (tag.key === 'other') {
+      if (productFeedbackEnabled) {
+        onReportIssue?.();
+      } else {
+        onFeedback({ rating: 'thumbsDown' });
         onOther?.();
       }
     },
-    [onFeedback, onOther, downStore],
+    [productFeedbackEnabled, onReportIssue, onFeedback, onOther],
   );
 
   return (
@@ -177,39 +173,15 @@ function FeedbackButtons({
         </div>
       </Ariakit.Popover>
 
-      <Ariakit.PopoverAnchor
-        store={downStore}
-        render={
-          <button
-            className={buttonClasses(feedback?.rating === 'thumbsDown', isLast)}
-            onClick={handleThumbsDownClick}
-            type="button"
-            title={localize('com_ui_feedback_negative')}
-            aria-pressed={feedback?.rating === 'thumbsDown'}
-            aria-haspopup="menu"
-          >
-            <ThumbDownIcon size="19" bold={feedback?.rating === 'thumbsDown'} />
-          </button>
-        }
-      />
-      <Ariakit.Popover
-        store={downStore}
-        gutter={8}
-        portal
-        unmountOnHide
-        className="popover-animate flex w-auto flex-col gap-1.5 overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary p-1.5 shadow-lg"
+      <button
+        className={buttonClasses(feedback?.rating === 'thumbsDown', isLast)}
+        onClick={handleThumbsDownClick}
+        type="button"
+        title={localize('com_ui_feedback_negative')}
+        aria-pressed={feedback?.rating === 'thumbsDown'}
       >
-        <div className="flex flex-col items-stretch justify-center">
-          {negativeTags.map((tag) => (
-            <FeedbackOptionButton
-              key={tag.key}
-              tag={tag}
-              active={downActive === tag.key}
-              onClick={handleDownOption(tag)}
-            />
-          ))}
-        </div>
-      </Ariakit.Popover>
+        <ThumbDownIcon size="19" bold={feedback?.rating === 'thumbsDown'} />
+      </button>
     </>
   );
 }
@@ -229,10 +201,17 @@ export default function Feedback({
   isLast = false,
   handleFeedback,
   feedback: initialFeedback,
+  conversationId,
+  messageId,
 }: FeedbackProps) {
   const localize = useLocalize();
+  const { showToast } = useToastContext();
   const [openDialog, setOpenDialog] = useState(false);
+  const [openProductFeedback, setOpenProductFeedback] = useState(false);
   const [feedback, setFeedback] = useState<TFeedback | undefined>(initialFeedback);
+  const { data: startupConfig } = useGetStartupConfig();
+  const productFeedbackEnabled = startupConfig?.productFeedbackEnabled === true;
+  const submitProductFeedback = useSubmitProductFeedbackMutation();
 
   useEffect(() => {
     setFeedback(initialFeedback);
@@ -257,6 +236,8 @@ export default function Feedback({
 
   const handleOtherOpen = useCallback(() => setOpenDialog(true), []);
 
+  const handleReportIssueOpen = useCallback(() => setOpenProductFeedback(true), []);
+
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFeedback((prev) => (prev ? { ...prev, text: e.target.value } : undefined));
   };
@@ -274,6 +255,60 @@ export default function Feedback({
     handleFeedback({ feedback: undefined });
     setOpenDialog(false);
   }, [handleFeedback]);
+
+  const handleProductFeedbackSubmit = useCallback(
+    (payload: ProductFeedbackPayload) => {
+      const mutationPayload = {
+        request_id: payload.request_id,
+        user: { username: payload.user_email ?? payload.user_id ?? '' },
+        timestamp: new Date().toISOString(),
+        feedback_reason: payload.feedback_reason,
+        feedback_title: payload.feedback_title,
+        feedback_details: payload.feedback_details,
+        feedback_suggested_fix: payload.feedback_suggested_fix,
+        conversation: {
+          conversation_id: payload.conversation_id,
+          message_id: payload.message_id,
+          last_n_messages: payload.messages,
+        },
+        metadata: {
+          librechat_version: '',
+          client: 'web',
+        },
+        ...(payload.user_email ? { contact: { email: payload.user_email } } : {}),
+      };
+
+      submitProductFeedback.mutate(mutationPayload, {
+        onSuccess: (data) => {
+          const issueUrl = data?.issue_url ?? '';
+          const toastOptions: Parameters<typeof showToast>[0] = {
+            message: localize('com_ui_product_feedback_success' as Parameters<typeof localize>[0]),
+            severity: NotificationSeverity.SUCCESS,
+            showIcon: true,
+            duration: 8000,
+          };
+
+          if (issueUrl) {
+            toastOptions.link = issueUrl;
+            toastOptions.linkText = localize(
+              'com_ui_product_feedback_view_issue' as Parameters<typeof localize>[0],
+            );
+            toastOptions.duration = 10000;
+          }
+
+          showToast(toastOptions);
+        },
+        onError: () => {
+          showToast({
+            message: localize('com_ui_product_feedback_error' as Parameters<typeof localize>[0]),
+            severity: NotificationSeverity.ERROR,
+            showIcon: true,
+          });
+        },
+      });
+    },
+    [submitProductFeedback, showToast, localize],
+  );
 
   const renderSingleFeedbackButton = () => {
     if (!feedback) return null;
@@ -311,6 +346,8 @@ export default function Feedback({
           feedback={feedback}
           onFeedback={handleButtonFeedback}
           onOther={handleOtherOpen}
+          onReportIssue={handleReportIssueOpen}
+          productFeedbackEnabled={productFeedbackEnabled}
         />
       )}
       <OGDialog open={openDialog} onOpenChange={setOpenDialog}>
@@ -336,6 +373,15 @@ export default function Feedback({
           </div>
         </OGDialogContent>
       </OGDialog>
+      {productFeedbackEnabled && conversationId && messageId && (
+        <ProductFeedbackModal
+          open={openProductFeedback}
+          onOpenChange={setOpenProductFeedback}
+          conversationId={conversationId}
+          messageId={messageId}
+          onSubmit={handleProductFeedbackSubmit}
+        />
+      )}
     </>
   );
 }

@@ -813,6 +813,7 @@ export type TStartupConfig = {
   >;
   mcpPlaceholder?: string;
   conversationImportMaxFileSize?: number;
+  productFeedbackEnabled?: boolean;
 };
 
 export enum OCRStrategy {
