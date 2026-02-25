@@ -1449,6 +1449,7 @@ export type TStartupConfig = {
     branch?: string | null;
     buildDate?: string | null;
   };
+  productFeedbackEnabled?: boolean;
 };
 
 export type TSharedLinkStartupInterface = Pick<

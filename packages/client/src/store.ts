@@ -13,6 +13,8 @@ export type ToastState = {
   message: string;
   severity: NotificationSeverity;
   showIcon: boolean;
+  link?: string;
+  linkText?: string;
 };
 
 export const toastState: PrimitiveAtom<ToastState> & {

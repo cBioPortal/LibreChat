@@ -56,6 +56,16 @@ export function Toast(): JSX.Element {
           )}
           <RadixToast.Description className="flex-1 justify-center gap-2">
             <div className="whitespace-pre-wrap text-left">{toast.message}</div>
+            {toast.link && (
+              <a
+                href={toast.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 block text-left text-sm underline hover:opacity-80"
+              >
+                {toast.linkText ?? toast.link}
+              </a>
+            )}
           </RadixToast.Description>
         </div>
       </div>
