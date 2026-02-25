@@ -258,6 +258,14 @@ export default function Feedback({
 
   const handleProductFeedbackSubmit = useCallback(
     (payload: ProductFeedbackPayload) => {
+      // Store the thumbs-down feedback in the existing feedback endpoint
+      handleFeedback({
+        feedback: {
+          rating: 'thumbsDown',
+          text: payload.feedback_title,
+        },
+      });
+
       const mutationPayload = {
         request_id: payload.request_id,
         user: { username: payload.user_email ?? payload.user_id ?? '' },
@@ -307,7 +315,7 @@ export default function Feedback({
         },
       });
     },
-    [submitProductFeedback, showToast, localize],
+    [submitProductFeedback, handleFeedback, showToast, localize],
   );
 
   const renderSingleFeedbackButton = () => {
