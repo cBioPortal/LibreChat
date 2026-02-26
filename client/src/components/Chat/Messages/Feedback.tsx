@@ -258,11 +258,20 @@ export default function Feedback({
 
   const handleProductFeedbackSubmit = useCallback(
     (payload: ProductFeedbackPayload) => {
-      // Store the thumbs-down feedback in the existing feedback endpoint
+      // Store the full feedback payload as JSON in the existing feedback text field
       handleFeedback({
         feedback: {
           rating: 'thumbsDown',
-          text: payload.feedback_title,
+          text: JSON.stringify({
+            request_id: payload.request_id,
+            feedback_reason: payload.feedback_reason,
+            feedback_title: payload.feedback_title,
+            feedback_details: payload.feedback_details,
+            feedback_suggested_fix: payload.feedback_suggested_fix,
+            conversation_id: payload.conversation_id,
+            message_id: payload.message_id,
+            messages: payload.messages,
+          }),
         },
       });
 

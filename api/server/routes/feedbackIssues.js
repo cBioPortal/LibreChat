@@ -83,23 +83,20 @@ router.post('/', async (req, res) => {
   const reasonLabel = REASON_LABELS[feedback_reason] || 'feedback';
 
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${githubRepo}/issues`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Accept': 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
-        body: JSON.stringify({
-          title: `[Feedback] ${feedback_title}`,
-          body: issueBody,
-          labels: [reasonLabel, 'user-feedback'],
-        }),
+    const response = await fetch(`https://api.github.com/repos/${githubRepo}/issues`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${githubToken}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28',
       },
-    );
+      body: JSON.stringify({
+        title: `[Feedback] ${feedback_title}`,
+        body: issueBody,
+        labels: [reasonLabel, 'user-feedback'],
+      }),
+    });
 
     const data = await response.json();
 
@@ -111,7 +108,10 @@ router.post('/', async (req, res) => {
       });
     }
 
-    logger.info('[feedbackIssues] Issue created:', { issue_number: data.number, url: data.html_url });
+    logger.info('[feedbackIssues] Issue created:', {
+      issue_number: data.number,
+      url: data.html_url,
+    });
 
     return res.json({
       issue_url: data.html_url,
