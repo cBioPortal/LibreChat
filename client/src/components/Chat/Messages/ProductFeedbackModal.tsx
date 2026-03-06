@@ -11,6 +11,9 @@ interface ProductFeedbackModalProps {
   onOpenChange: (open: boolean) => void;
   conversationId: string;
   messageId: string;
+  endpoint?: string;
+  model?: string;
+  agent_id?: string;
   onSubmit?: (payload: ProductFeedbackPayload) => void;
   onSuccess?: (issueUrl: string) => void;
 }
@@ -32,6 +35,9 @@ export interface ProductFeedbackPayload {
   user_id: string | undefined;
   user_email: string | undefined;
   messages: ConversationMessage[];
+  endpoint?: string;
+  model?: string;
+  agent_id?: string;
 }
 
 type FeedbackReason =
@@ -54,6 +60,9 @@ export default function ProductFeedbackModal({
   onOpenChange,
   conversationId,
   messageId,
+  endpoint,
+  model,
+  agent_id,
   onSubmit,
   onSuccess,
 }: ProductFeedbackModalProps) {
@@ -120,6 +129,9 @@ export default function ProductFeedbackModal({
         user_id: user?.id,
         user_email: user?.email,
         messages: lastMessages,
+        endpoint,
+        model,
+        agent_id,
       };
 
       if (onSubmit) {
@@ -144,6 +156,9 @@ export default function ProductFeedbackModal({
     feedbackSuggestedFix,
     messageId,
     user,
+    endpoint,
+    model,
+    agent_id,
     onSubmit,
     onSuccess,
     onOpenChange,

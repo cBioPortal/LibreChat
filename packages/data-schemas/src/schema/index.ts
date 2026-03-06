@@ -30,3 +30,4 @@ export { default as groupSchema } from './group';
 export { default as systemGrantSchema } from './systemGrant';
 export { default as auditLogSchema } from './auditLog';
 export { default as configSchema } from './config';
+export { default as productFeedbackSchema } from './productFeedback';

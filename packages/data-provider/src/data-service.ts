@@ -1287,8 +1287,8 @@ export interface TProductFeedbackPayload {
 }
 
 export interface TProductFeedbackResponse {
-  issue_url: string;
-  issue_number: number;
+  id: string;
+  request_id: string;
 }
 
 export function submitProductFeedback(

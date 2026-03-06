@@ -27,6 +27,9 @@ export type TProductFeedbackPayload = {
   metadata: {
     librechat_version: string;
     client: string;
+    endpoint?: string;
+    model?: string;
+    agent_id?: string;
   };
   contact?: {
     email?: string;
@@ -34,6 +37,6 @@ export type TProductFeedbackPayload = {
 };
 
 export type TProductFeedbackResponse = {
-  issue_url: string;
-  issue_number: number;
+  id: string;
+  request_id: string;
 };
