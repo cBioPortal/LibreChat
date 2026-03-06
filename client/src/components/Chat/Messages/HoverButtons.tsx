@@ -228,30 +228,6 @@ const HoverButtons = ({
         dataTestId={!isCreatedByUser ? 'copy-response-button' : undefined}
       />
 
-      {/* Edit Button */}
-      {isEditableEndpoint && (
-        <HoverButton
-          id={`edit-${message.messageId}`}
-          onClick={onEdit}
-          title={localize('com_ui_edit')}
-          icon={<EditIcon size="19" />}
-          isActive={isEditing}
-          isVisible={!hideEditButton}
-          isDisabled={hideEditButton}
-          isLast={isLast}
-          className={isCreatedByUser ? '' : 'active'}
-        />
-      )}
-
-      {/* Fork Button */}
-      <Fork
-        messageId={message.messageId}
-        conversationId={conversation.conversationId}
-        forkingSupported={forkingSupported}
-        latestMessageId={latestMessageId}
-        isLast={isLast}
-      />
-
       {/* Feedback Buttons */}
       {!isCreatedByUser && handleFeedback != null && (
         <Feedback
