@@ -33,6 +33,9 @@ interface FeedbackProps {
   isLast?: boolean;
   conversationId?: string;
   messageId?: string;
+  endpoint?: string;
+  model?: string;
+  agent_id?: string;
 }
 
 const ICONS = {
@@ -203,6 +206,9 @@ export default function Feedback({
   feedback: initialFeedback,
   conversationId,
   messageId,
+  endpoint,
+  model,
+  agent_id,
 }: FeedbackProps) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
@@ -271,6 +277,9 @@ export default function Feedback({
             conversation_id: payload.conversation_id,
             message_id: payload.message_id,
             messages: payload.messages,
+            endpoint: payload.endpoint,
+            model: payload.model,
+            agent_id: payload.agent_id,
           }),
         },
       });
@@ -291,29 +300,21 @@ export default function Feedback({
         metadata: {
           librechat_version: '',
           client: 'web',
+          endpoint: payload.endpoint,
+          model: payload.model,
+          agent_id: payload.agent_id,
         },
         ...(payload.user_email ? { contact: { email: payload.user_email } } : {}),
       };
 
       submitProductFeedback.mutate(mutationPayload, {
-        onSuccess: (data) => {
-          const issueUrl = data?.issue_url ?? '';
-          const toastOptions: Parameters<typeof showToast>[0] = {
+        onSuccess: () => {
+          showToast({
             message: localize('com_ui_product_feedback_success' as Parameters<typeof localize>[0]),
             severity: NotificationSeverity.SUCCESS,
             showIcon: true,
-            duration: 8000,
-          };
-
-          if (issueUrl) {
-            toastOptions.link = issueUrl;
-            toastOptions.linkText = localize(
-              'com_ui_product_feedback_view_issue' as Parameters<typeof localize>[0],
-            );
-            toastOptions.duration = 10000;
-          }
-
-          showToast(toastOptions);
+            duration: 5000,
+          });
         },
         onError: () => {
           showToast({
@@ -396,6 +397,9 @@ export default function Feedback({
           onOpenChange={setOpenProductFeedback}
           conversationId={conversationId}
           messageId={messageId}
+          endpoint={endpoint}
+          model={model}
+          agent_id={agent_id}
           onSubmit={handleProductFeedbackSubmit}
         />
       )}

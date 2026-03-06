@@ -251,6 +251,9 @@ const HoverButtons = ({
           isLast={isLast}
           conversationId={conversation.conversationId ?? undefined}
           messageId={message.messageId ?? undefined}
+          endpoint={endpoint || undefined}
+          model={conversation?.model ?? undefined}
+          agent_id={conversation?.agent_id ?? undefined}
         />
       )}
 

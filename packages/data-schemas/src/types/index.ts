@@ -30,3 +30,5 @@ export * from './group';
 export * from './web';
 /* MCP Servers */
 export * from './mcp';
+/* Product Feedback */
+export * from './productFeedback';

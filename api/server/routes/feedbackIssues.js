@@ -1,77 +1,14 @@
 const express = require('express');
+const { v4: uuidv4 } = require('uuid');
 const { logger } = require('@librechat/data-schemas');
 const { requireJwtAuth } = require('~/server/middleware');
+const { ProductFeedback } = require('~/db/models');
 
 const router = express.Router();
 router.use(requireJwtAuth);
 
-const REASON_LABELS = {
-  incorrect: 'bug',
-  unfaithful: 'bug',
-  safety_or_legal_concern: 'safety',
-  style_tone_conciseness: 'enhancement',
-  other: 'feedback',
-};
-
-function formatIssueBody(payload) {
-  const {
-    feedback_reason,
-    feedback_details,
-    feedback_suggested_fix,
-    conversation,
-    user,
-    timestamp,
-    request_id,
-  } = payload;
-
-  const messages = (conversation?.last_n_messages || [])
-    .map((m) => `**${m.is_user ? 'User' : 'Assistant'}** (${m.timestamp}):\n${m.text}`)
-    .join('\n\n---\n\n');
-
-  const lines = [
-    '## Feedback Report',
-    '',
-    '| Field | Value |',
-    '|-------|-------|',
-    `| **Reason** | ${feedback_reason} |`,
-    `| **Reported by** | ${user?.username || 'unknown'} |`,
-    `| **Timestamp** | ${timestamp} |`,
-    `| **Request ID** | \`${request_id}\` |`,
-    `| **Conversation** | \`${conversation?.conversation_id || 'N/A'}\` |`,
-    `| **Message** | \`${conversation?.message_id || 'N/A'}\` |`,
-    '',
-    '### Issue Details',
-    '',
-    feedback_details?.trim() || '_No details provided_',
-    '',
-    '### Suggested Fix',
-    '',
-    feedback_suggested_fix?.trim() || '_No suggestion provided_',
-  ];
-
-  if (messages) {
-    lines.push(
-      '',
-      `### Conversation Context (last ${conversation.last_n_messages.length} messages)`,
-      '',
-      messages,
-    );
-  }
-
-  return lines.join('\n');
-}
-
 router.post('/', async (req, res) => {
-  const githubToken = process.env.GITHUB_FEEDBACK_TOKEN;
-  const githubRepo = process.env.GITHUB_FEEDBACK_REPO;
-
-  if (!githubToken || !githubRepo) {
-    return res.status(501).json({
-      error: 'Product feedback is not configured. Set GITHUB_FEEDBACK_TOKEN and GITHUB_FEEDBACK_REPO.',
-    });
-  }
-
-  const { feedback_reason, feedback_title } = req.body;
+  const { feedback_reason, feedback_title, feedback_details, feedback_suggested_fix, conversation, metadata, contact } = req.body;
 
   if (!feedback_reason || !feedback_title) {
     return res.status(400).json({
@@ -79,48 +16,32 @@ router.post('/', async (req, res) => {
     });
   }
 
-  const issueBody = formatIssueBody(req.body);
-  const reasonLabel = REASON_LABELS[feedback_reason] || 'feedback';
+  const request_id = req.body.request_id || uuidv4();
 
   try {
-    const response = await fetch(`https://api.github.com/repos/${githubRepo}/issues`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${githubToken}`,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      body: JSON.stringify({
-        title: `[Feedback] ${feedback_title}`,
-        body: issueBody,
-        labels: [reasonLabel, 'user-feedback'],
-      }),
+    const record = await ProductFeedback.create({
+      request_id,
+      user: req.user.id,
+      username: req.user.username || req.user.name || 'unknown',
+      feedback_reason,
+      feedback_title,
+      feedback_details,
+      feedback_suggested_fix,
+      conversation,
+      metadata,
+      contact,
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      logger.error('[feedbackIssues] GitHub API error:', { status: response.status, data });
-      return res.status(502).json({
-        error: 'Failed to create GitHub issue',
-        details: data.message || 'Unknown GitHub API error',
-      });
-    }
-
-    logger.info('[feedbackIssues] Issue created:', {
-      issue_number: data.number,
-      url: data.html_url,
-    });
+    logger.info('[feedbackIssues] Feedback saved:', { request_id, id: record._id });
 
     return res.json({
-      issue_url: data.html_url,
-      issue_number: data.number,
+      id: record._id.toString(),
+      request_id,
     });
   } catch (error) {
-    logger.error('[feedbackIssues] Failed to reach GitHub API:', error);
-    return res.status(502).json({
-      error: 'Failed to reach GitHub API',
+    logger.error('[feedbackIssues] Failed to save feedback:', error);
+    return res.status(500).json({
+      error: 'Failed to save feedback',
       message: error.message,
     });
   }
