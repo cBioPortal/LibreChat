@@ -110,11 +110,20 @@ export default function ProductFeedbackModal({
       const messages =
         queryClient.getQueryData<TMessage[]>([QueryKeys.messages, conversationId]) ?? [];
 
-      const lastMessages = messages.slice(-10).map((msg) => ({
-        timestamp: msg.createdAt ?? new Date().toISOString(),
-        is_user: msg.isCreatedByUser,
-        text: msg.text,
-      }));
+      const lastMessages = messages.slice(-10).map((msg) => {
+        let text = msg.text;
+        if (!text && Array.isArray(msg.content)) {
+          text = msg.content
+            .filter((c) => c.type === 'text')
+            .map((c) => c.text)
+            .join('\n');
+        }
+        return {
+          timestamp: msg.createdAt ?? new Date().toISOString(),
+          is_user: msg.isCreatedByUser,
+          text: text ?? '',
+        };
+      });
 
       const requestId = crypto.randomUUID();
 
