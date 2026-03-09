@@ -441,6 +441,7 @@ async function sendFeedbackToLangfuse({ messageId, conversationId, feedback }) {
       body: JSON.stringify({
         traceId,
         name: 'user_feedback',
+        dataType: 'BOOLEAN',
         value: feedback.rating === 'thumbsUp' ? 1 : 0,
         ...(comment ? { comment } : {}),
       }),
