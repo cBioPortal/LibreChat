@@ -70,7 +70,6 @@ function FeedbackButtons({
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
       if (productFeedbackEnabled) {
-        onFeedback({ rating: 'thumbsDown' });
         onReportIssue?.();
       } else {
         onFeedback({ rating: 'thumbsDown' });
@@ -239,6 +238,8 @@ export default function Feedback({
 
   const handleProductFeedbackSubmit = useCallback(
     (payload: ProductFeedbackPayload) => {
+      // Immediately show single thumbs-down button
+      setFeedback({ rating: 'thumbsDown' });
       // Store the full feedback payload as JSON in the existing feedback text field
       handleFeedback({
         feedback: {
@@ -321,6 +322,8 @@ export default function Feedback({
         onClick={() => {
           if (isThumbsUp) {
             handleButtonFeedback(undefined);
+          } else if (productFeedbackEnabled) {
+            setOpenProductFeedback(true);
           } else {
             setOpenDialog(true);
           }
