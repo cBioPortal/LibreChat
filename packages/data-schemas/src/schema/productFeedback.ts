@@ -8,8 +8,6 @@ const productFeedbackSchema = new Schema<IProductFeedback>(
     username: { type: String },
     feedback_reason: {
       type: String,
-      required: true,
-      enum: ['incorrect', 'unfaithful', 'safety_or_legal_concern', 'style_tone_conciseness', 'other'],
       index: true,
     },
     feedback_title: { type: String },
