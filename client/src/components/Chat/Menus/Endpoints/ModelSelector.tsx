@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { TooltipAnchor } from '@librechat/client';
-import { getConfigDefaults } from 'librechat-data-provider';
+import { getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
+import type { TModelSpec } from 'librechat-data-provider';
 import type { ModelSelectorProps } from '~/common';
 import {
   renderModelSpecs,
@@ -11,9 +12,52 @@ import {
 import { ModelSelectorProvider, useModelSelectorContext } from './ModelSelectorContext';
 import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
 import { getSelectedIcon, getDisplayValue } from './utils';
+import SpecIcon from './components/SpecIcon';
 import { CustomMenu as Menu } from './CustomMenu';
 import DialogManager from './DialogManager';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
+
+function AgentButtonSelector({
+  specs,
+  selectedSpec,
+  endpointsConfig,
+  onSelect,
+}: {
+  specs: TModelSpec[];
+  selectedSpec: string | null;
+  endpointsConfig: any;
+  onSelect: (spec: TModelSpec) => void;
+}) {
+  return (
+    <div className="relative flex w-full max-w-2xl flex-row flex-wrap items-center justify-center gap-1.5">
+      {specs.map((spec) => {
+        const isSelected = selectedSpec === spec.name;
+        return (
+          <button
+            key={spec.name}
+            type="button"
+            onClick={() => onSelect(spec)}
+            className={cn(
+              'my-1 flex h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors duration-200',
+              isSelected
+                ? 'border-text-primary bg-surface-active-alt font-semibold text-text-primary'
+                : 'border-border-light bg-presentation text-text-secondary hover:bg-surface-active-alt hover:text-text-primary',
+            )}
+            aria-pressed={isSelected}
+          >
+            {(spec.showIconInHeader !== false) && (
+              <div className="flex flex-shrink-0 items-center justify-center overflow-hidden">
+                <SpecIcon currentSpec={spec} endpointsConfig={endpointsConfig} />
+              </div>
+            )}
+            <span className="truncate">{spec.label || spec.name}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function ModelSelectorContent() {
   const localize = useLocalize();
@@ -37,27 +81,49 @@ function ModelSelectorContent() {
     keyDialogEndpoint,
   } = useModelSelectorContext();
 
-  const selectedIcon = useMemo(
-    () =>
-      getSelectedIcon({
-        mappedEndpoints: mappedEndpoints ?? [],
-        selectedValues,
-        modelSpecs,
-        endpointsConfig,
-      }),
-    [mappedEndpoints, selectedValues, modelSpecs, endpointsConfig],
+  // Check if all model specs are agent endpoints — if so, use button selector
+  const allAgentSpecs = useMemo(() => {
+    if (!modelSpecs || modelSpecs.length === 0) return false;
+    return modelSpecs.every(
+      (spec) => spec.preset?.endpoint && isAgentsEndpoint(spec.preset.endpoint),
+    );
+  }, [modelSpecs]);
+
+  const handleSpecSelect = useMemo(
+    () => (spec: TModelSpec) => {
+      setSelectedValues({
+        endpoint: spec.preset?.endpoint || '',
+        model: spec.preset?.agent_id || spec.preset?.model || '',
+        modelSpec: spec.name,
+      });
+    },
+    [setSelectedValues],
   );
-  const selectedDisplayValue = useMemo(
-    () =>
-      getDisplayValue({
-        localize,
-        agentsMap,
-        modelSpecs,
-        selectedValues,
-        mappedEndpoints,
-      }),
-    [localize, agentsMap, modelSpecs, selectedValues, mappedEndpoints],
-  );
+
+  if (allAgentSpecs && modelSpecs) {
+    return (
+      <AgentButtonSelector
+        specs={modelSpecs}
+        selectedSpec={selectedValues.modelSpec}
+        endpointsConfig={endpointsConfig}
+        onSelect={handleSpecSelect}
+      />
+    );
+  }
+
+  const selectedIcon = getSelectedIcon({
+    mappedEndpoints: mappedEndpoints ?? [],
+    selectedValues,
+    modelSpecs,
+    endpointsConfig,
+  });
+  const selectedDisplayValue = getDisplayValue({
+    localize,
+    agentsMap,
+    modelSpecs,
+    selectedValues,
+    mappedEndpoints,
+  });
 
   const trigger = (
     <TooltipAnchor

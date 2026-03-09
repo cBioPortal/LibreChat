@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { QueryKeys } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import { Button, OGDialog, OGDialogContent, OGDialogTitle } from '@librechat/client';
+import { useGetStartupConfig } from '~/data-provider';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
 
@@ -30,6 +31,7 @@ export interface ProductFeedbackPayload {
   feedback_title: string;
   feedback_details: string;
   feedback_suggested_fix: string;
+  suggested_system_prompt?: string;
   conversation_id: string;
   message_id: string;
   user_id: string | undefined;
@@ -55,6 +57,14 @@ const FEEDBACK_REASONS: { value: FeedbackReason; labelKey: string }[] = [
   { value: 'other', labelKey: 'com_ui_product_feedback_reason_other' },
 ];
 
+const PLACEHOLDER_MAP: Record<FeedbackReason, string> = {
+  incorrect: 'It is incorrect because...',
+  unfaithful: "The response doesn't match the source because...",
+  safety_or_legal_concern: 'The safety/legal concern is...',
+  style_tone_conciseness: 'The style issue is...',
+  other: 'Describe the issue...',
+};
+
 export default function ProductFeedbackModal({
   open,
   onOpenChange,
@@ -69,21 +79,41 @@ export default function ProductFeedbackModal({
   const localize = useLocalize();
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
+  const { data: startupConfig } = useGetStartupConfig();
 
-  const [feedbackReason, setFeedbackReason] = useState<FeedbackReason | ''>('');
-  const [feedbackTitle, setFeedbackTitle] = useState('');
+  const [feedbackReasons, setFeedbackReasons] = useState<FeedbackReason[]>([]);
   const [feedbackDetails, setFeedbackDetails] = useState('');
   const [feedbackSuggestedFix, setFeedbackSuggestedFix] = useState('');
+  const [suggestedSystemPrompt, setSuggestedSystemPrompt] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isSubmitDisabled = !feedbackReason || !feedbackTitle.trim() || isSubmitting;
+  const isPowerUser = useMemo(() => {
+    const emails = startupConfig?.powerUserEmails;
+    if (!emails || !user?.email) return false;
+    return emails.includes(user.email);
+  }, [startupConfig?.powerUserEmails, user?.email]);
+
+  const isSubmitDisabled = isSubmitting;
+
+  const detailsPlaceholder = useMemo(() => {
+    if (feedbackReasons.length === 1) {
+      return PLACEHOLDER_MAP[feedbackReasons[0]];
+    }
+    return 'Describe the issue...';
+  }, [feedbackReasons]);
+
+  const toggleReason = useCallback((reason: FeedbackReason) => {
+    setFeedbackReasons((prev) =>
+      prev.includes(reason) ? prev.filter((r) => r !== reason) : [...prev, reason],
+    );
+  }, []);
 
   const resetForm = useCallback(() => {
-    setFeedbackReason('');
-    setFeedbackTitle('');
+    setFeedbackReasons([]);
     setFeedbackDetails('');
     setFeedbackSuggestedFix('');
+    setSuggestedSystemPrompt('');
     setError(null);
     setIsSubmitting(false);
   }, []);
@@ -129,10 +159,13 @@ export default function ProductFeedbackModal({
 
       const payload: ProductFeedbackPayload = {
         request_id: requestId,
-        feedback_reason: feedbackReason,
-        feedback_title: feedbackTitle.trim(),
+        feedback_reason: feedbackReasons.join(','),
+        feedback_title: '',
         feedback_details: feedbackDetails.trim(),
         feedback_suggested_fix: feedbackSuggestedFix.trim(),
+        ...(suggestedSystemPrompt.trim()
+          ? { suggested_system_prompt: suggestedSystemPrompt.trim() }
+          : {}),
         conversation_id: conversationId,
         message_id: messageId,
         user_id: user?.id,
@@ -159,10 +192,10 @@ export default function ProductFeedbackModal({
     isSubmitDisabled,
     queryClient,
     conversationId,
-    feedbackReason,
-    feedbackTitle,
+    feedbackReasons,
     feedbackDetails,
     feedbackSuggestedFix,
+    suggestedSystemPrompt,
     messageId,
     user,
     endpoint,
@@ -183,20 +216,23 @@ export default function ProductFeedbackModal({
         </OGDialogTitle>
 
         <div className="flex flex-col gap-4">
-          {/* Feedback Reason Pills */}
+          {/* Feedback Reason Pills (optional, multi-select) */}
           <div>
             <label className="mb-2 block text-sm font-medium text-text-primary">
               {localize('com_ui_product_feedback_reason' as Parameters<typeof localize>[0])}
+              <span className="ml-1 text-xs font-normal text-text-secondary">
+                ({localize('com_ui_product_feedback_optional' as Parameters<typeof localize>[0])})
+              </span>
             </label>
             <div className="flex flex-wrap gap-2">
               {FEEDBACK_REASONS.map(({ value, labelKey }) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setFeedbackReason(value)}
+                  onClick={() => toggleReason(value)}
                   className={cn(
                     'rounded-full border px-3 py-1.5 text-sm transition-colors duration-200',
-                    feedbackReason === value
+                    feedbackReasons.includes(value)
                       ? 'border-text-primary bg-text-primary text-surface-primary font-semibold'
                       : 'border-border-medium bg-transparent text-text-secondary hover:border-text-secondary hover:text-text-primary',
                   )}
@@ -205,20 +241,6 @@ export default function ProductFeedbackModal({
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Feedback Title */}
-          <div>
-            <input
-              type="text"
-              className="w-full rounded-xl border border-border-light bg-transparent p-2 text-sm text-text-primary placeholder:text-text-secondary"
-              placeholder={localize(
-                'com_ui_product_feedback_issue_title' as Parameters<typeof localize>[0],
-              )}
-              value={feedbackTitle}
-              onChange={(e) => setFeedbackTitle(e.target.value)}
-              maxLength={200}
-            />
           </div>
 
           {/* Feedback Details */}
@@ -231,9 +253,7 @@ export default function ProductFeedbackModal({
             </label>
             <textarea
               className="w-full rounded-xl border border-border-light bg-transparent p-2 text-sm text-text-primary placeholder:text-text-secondary"
-              placeholder={localize(
-                'com_ui_product_feedback_details_placeholder' as Parameters<typeof localize>[0],
-              )}
+              placeholder={detailsPlaceholder}
               value={feedbackDetails}
               onChange={(e) => setFeedbackDetails(e.target.value)}
               rows={4}
@@ -241,27 +261,45 @@ export default function ProductFeedbackModal({
             />
           </div>
 
-          {/* Suggested Fix */}
+          {/* Expected Outcome (was "Suggested Fix") */}
           <div>
             <label className="mb-1 block text-sm font-medium text-text-primary">
-              {localize(
-                'com_ui_product_feedback_suggested_fix' as Parameters<typeof localize>[0],
-              )}
+              Expected Outcome
               <span className="ml-1 text-xs font-normal text-text-secondary">
                 ({localize('com_ui_product_feedback_optional' as Parameters<typeof localize>[0])})
               </span>
             </label>
             <textarea
               className="w-full rounded-xl border border-border-light bg-transparent p-2 text-sm text-text-primary placeholder:text-text-secondary"
-              placeholder={localize(
-                'com_ui_product_feedback_suggested_fix_placeholder' as Parameters<typeof localize>[0],
-              )}
+              placeholder="What did you expect the response to be?"
               value={feedbackSuggestedFix}
               onChange={(e) => setFeedbackSuggestedFix(e.target.value)}
               rows={3}
               maxLength={2000}
             />
           </div>
+
+          {/* Suggested System Prompt (power users only) */}
+          {isPowerUser && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-text-primary">
+                Suggested System Prompt
+                <span className="ml-1 text-xs font-normal text-text-secondary">
+                  ({localize(
+                    'com_ui_product_feedback_optional' as Parameters<typeof localize>[0],
+                  )})
+                </span>
+              </label>
+              <textarea
+                className="w-full rounded-xl border border-border-light bg-transparent p-2 text-sm text-text-primary placeholder:text-text-secondary"
+                placeholder="Suggest changes to the system prompt..."
+                value={suggestedSystemPrompt}
+                onChange={(e) => setSuggestedSystemPrompt(e.target.value)}
+                rows={3}
+                maxLength={4000}
+              />
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

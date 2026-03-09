@@ -219,20 +219,6 @@ const HoverButtons = ({
         )}
       />
 
-      {/* Feedback Buttons */}
-      {!isCreatedByUser && handleFeedback != null && (
-        <Feedback
-          handleFeedback={handleFeedback}
-          feedback={message.feedback}
-          isLast={isLast}
-          conversationId={conversation.conversationId ?? undefined}
-          messageId={message.messageId ?? undefined}
-          endpoint={endpoint || undefined}
-          model={conversation?.model ?? undefined}
-          agent_id={conversation?.agent_id ?? undefined}
-        />
-      )}
-
       {/* Regenerate Button */}
       {regenerateEnabled && (
         <HoverButton
@@ -252,6 +238,20 @@ const HoverButtons = ({
           icon={<ContinueIcon className="w-19 h-19 -rotate-180" />}
           isLast={isLast}
           className="active"
+        />
+      )}
+
+      {/* Feedback Buttons */}
+      {!isCreatedByUser && handleFeedback != null && (
+        <Feedback
+          handleFeedback={handleFeedback}
+          feedback={message.feedback}
+          isLast={isLast}
+          conversationId={conversation.conversationId ?? undefined}
+          messageId={message.messageId ?? undefined}
+          endpoint={endpoint || undefined}
+          model={conversation?.model ?? undefined}
+          agent_id={conversation?.agent_id ?? undefined}
         />
       )}
     </div>

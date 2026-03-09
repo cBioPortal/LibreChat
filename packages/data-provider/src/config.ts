@@ -814,6 +814,7 @@ export type TStartupConfig = {
   mcpPlaceholder?: string;
   conversationImportMaxFileSize?: number;
   productFeedbackEnabled?: boolean;
+  powerUserEmails?: string[];
 };
 
 export enum OCRStrategy {
