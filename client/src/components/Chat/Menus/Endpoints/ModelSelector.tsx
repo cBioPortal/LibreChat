@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TooltipAnchor } from '@librechat/client';
-import { getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
+import { Constants, getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
 import type { TModelSpec } from 'librechat-data-provider';
 import type { ModelSelectorProps } from '~/common';
 import {
@@ -10,7 +10,7 @@ import {
   renderCustomGroups,
 } from './components';
 import { ModelSelectorProvider, useModelSelectorContext } from './ModelSelectorContext';
-import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
+import { ModelSelectorChatProvider, useModelSelectorChatContext } from './ModelSelectorChatContext';
 import { getSelectedIcon, getDisplayValue } from './utils';
 import SpecIcon from './components/SpecIcon';
 import { CustomMenu as Menu } from './CustomMenu';
@@ -51,7 +51,7 @@ function AgentButtonSelector({
                 <SpecIcon currentSpec={spec} endpointsConfig={endpointsConfig} />
               </div>
             )}
-            <span className="truncate">{spec.label || spec.name}</span>
+            <span className="truncate">{spec.name}</span>
           </button>
         );
       })}
@@ -82,6 +82,8 @@ function ModelSelectorContent() {
     keyDialogEndpoint,
   } = useModelSelectorContext();
 
+  const { conversation } = useModelSelectorChatContext();
+
   // Check if all model specs are agent endpoints — if so, use button selector
   const allAgentSpecs = useMemo(() => {
     if (!modelSpecs || modelSpecs.length === 0) return false;
@@ -90,7 +92,11 @@ function ModelSelectorContent() {
     );
   }, [modelSpecs]);
 
-  if (allAgentSpecs && modelSpecs) {
+  // Hide agent buttons once a conversation has started
+  const conversationId = conversation?.conversationId;
+  const isNewConversation = !conversationId || conversationId === Constants.NEW_CONVO;
+
+  if (allAgentSpecs && modelSpecs && isNewConversation) {
     return (
       <AgentButtonSelector
         specs={modelSpecs}
@@ -99,6 +105,10 @@ function ModelSelectorContent() {
         onSelect={handleSelectSpec}
       />
     );
+  }
+
+  if (allAgentSpecs && modelSpecs && !isNewConversation) {
+    return null;
   }
 
   const selectedIcon = getSelectedIcon({
