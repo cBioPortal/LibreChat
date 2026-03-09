@@ -318,13 +318,7 @@ export default function Feedback({
       <button
         className={classes}
         onClick={() => {
-          if (isThumbsUp) {
-            handleButtonFeedback(undefined);
-          } else if (productFeedbackEnabled) {
-            setOpenProductFeedback(true);
-          } else {
-            setOpenDialog(true);
-          }
+          handleButtonFeedback(undefined);
         }}
         type="button"
         title={label}
