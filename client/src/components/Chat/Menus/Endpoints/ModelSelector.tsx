@@ -30,7 +30,7 @@ function AgentButtonSelector({
   onSelect: (spec: TModelSpec) => void;
 }) {
   return (
-    <div className="relative flex w-full max-w-2xl flex-row flex-wrap items-center justify-center gap-1.5">
+    <div className="relative inline-flex flex-row items-center gap-1.5">
       {specs.map((spec) => {
         const isSelected = selectedSpec === spec.name;
         return (
@@ -75,6 +75,7 @@ function ModelSelectorContent() {
     // Functions
     setSearchValue,
     setSelectedValues,
+    handleSelectSpec,
     // Dialog
     keyDialogOpen,
     onOpenChange,
@@ -89,24 +90,13 @@ function ModelSelectorContent() {
     );
   }, [modelSpecs]);
 
-  const handleSpecSelect = useMemo(
-    () => (spec: TModelSpec) => {
-      setSelectedValues({
-        endpoint: spec.preset?.endpoint || '',
-        model: spec.preset?.agent_id || spec.preset?.model || '',
-        modelSpec: spec.name,
-      });
-    },
-    [setSelectedValues],
-  );
-
   if (allAgentSpecs && modelSpecs) {
     return (
       <AgentButtonSelector
         specs={modelSpecs}
         selectedSpec={selectedValues.modelSpec}
         endpointsConfig={endpointsConfig}
-        onSelect={handleSpecSelect}
+        onSelect={handleSelectSpec}
       />
     );
   }
