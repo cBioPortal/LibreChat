@@ -377,6 +377,79 @@ router.put('/:conversationId/:messageId', validateMessageReq, async (req, res) =
   }
 });
 
+/**
+ * Send feedback as a score to Langfuse (fire-and-forget).
+ * Looks up the trace by messageId in metadata, then creates a score.
+ */
+async function sendFeedbackToLangfuse({ messageId, conversationId, feedback }) {
+  const baseUrl = process.env.LANGFUSE_BASE_URL;
+  const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
+  const secretKey = process.env.LANGFUSE_SECRET_KEY;
+  if (!baseUrl || !publicKey || !secretKey) {
+    return;
+  }
+
+  try {
+    const auth = Buffer.from(`${publicKey}:${secretKey}`).toString('base64');
+    const headers = { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' };
+
+    // Find the trace for this messageId
+    const searchUrl = `${baseUrl}/api/public/traces?limit=1&sessionId=${conversationId}`;
+    const searchRes = await fetch(searchUrl, { headers });
+    if (!searchRes.ok) {
+      return;
+    }
+    const searchData = await searchRes.json();
+    // Find trace whose metadata.messageId matches
+    const traces = searchData.data || [];
+    let traceId;
+    for (const trace of traces) {
+      if (trace.metadata?.messageId === messageId) {
+        traceId = trace.id;
+        break;
+      }
+    }
+
+    // If sessionId search didn't match metadata, try broader search
+    if (!traceId) {
+      const broadUrl = `${baseUrl}/api/public/traces?limit=10&sessionId=${conversationId}`;
+      const broadRes = await fetch(broadUrl, { headers });
+      if (broadRes.ok) {
+        const broadData = await broadRes.json();
+        for (const trace of broadData.data || []) {
+          if (trace.metadata?.messageId === messageId) {
+            traceId = trace.id;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!traceId) {
+      logger.debug(`[Langfuse] No trace found for messageId=${messageId}`);
+      return;
+    }
+
+    const comment = [
+      feedback.tag?.key || feedback.tag || '',
+      feedback.text || '',
+    ].filter(Boolean).join(': ');
+
+    await fetch(`${baseUrl}/api/public/scores`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        traceId,
+        name: 'user_feedback',
+        value: feedback.rating === 'thumbsUp' ? 1 : 0,
+        ...(comment ? { comment } : {}),
+      }),
+    });
+  } catch (err) {
+    logger.debug('[Langfuse] Failed to send feedback score:', err.message);
+  }
+}
+
 router.put('/:conversationId/:messageId/feedback', validateMessageReq, async (req, res) => {
   try {
     const { conversationId, messageId } = req.params;
@@ -396,6 +469,11 @@ router.put('/:conversationId/:messageId/feedback', validateMessageReq, async (re
       conversationId,
       feedback: updatedMessage.feedback,
     });
+
+    // Fire-and-forget: send feedback to Langfuse
+    if (feedback?.rating) {
+      sendFeedbackToLangfuse({ messageId, conversationId, feedback }).catch(() => {});
+    }
   } catch (error) {
     logger.error('Error updating message feedback:', error);
     res.status(500).json({ error: 'Failed to update feedback' });
