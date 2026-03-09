@@ -279,6 +279,9 @@ router.get('/', async function (req, res) {
       ...(cloudFront ? { cloudFront } : {}),
       ...(rum ? { rum } : {}),
       productFeedbackEnabled: isEnabled(process.env.PRODUCT_FEEDBACK_ENABLED),
+      powerUserEmails: process.env.POWER_USER_EMAILS
+        ? process.env.POWER_USER_EMAILS.split(',').map((e) => e.trim()).filter(Boolean)
+        : undefined,
     };
 
     const webSearch = buildWebSearchConfig(appConfig);

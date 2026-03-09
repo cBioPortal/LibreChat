@@ -5,9 +5,10 @@ export interface IProductFeedback extends Document {
   user: string;
   username: string;
   feedback_reason: 'incorrect' | 'unfaithful' | 'safety_or_legal_concern' | 'style_tone_conciseness' | 'other';
-  feedback_title: string;
+  feedback_title?: string;
   feedback_details?: string;
   feedback_suggested_fix?: string;
+  suggested_system_prompt?: string;
   conversation?: {
     conversation_id: string;
     message_id: string;

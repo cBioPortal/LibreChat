@@ -1450,6 +1450,7 @@ export type TStartupConfig = {
     buildDate?: string | null;
   };
   productFeedbackEnabled?: boolean;
+  powerUserEmails?: string[];
 };
 
 export type TSharedLinkStartupInterface = Pick<

@@ -228,20 +228,6 @@ const HoverButtons = ({
         dataTestId={!isCreatedByUser ? 'copy-response-button' : undefined}
       />
 
-      {/* Feedback Buttons */}
-      {!isCreatedByUser && handleFeedback != null && (
-        <Feedback
-          handleFeedback={handleFeedback}
-          feedback={message.feedback}
-          isLast={isLast}
-          conversationId={conversation.conversationId ?? undefined}
-          messageId={message.messageId ?? undefined}
-          endpoint={endpoint || undefined}
-          model={conversation?.model ?? undefined}
-          agent_id={conversation?.agent_id ?? undefined}
-        />
-      )}
-
       {/* Regenerate Button */}
       {regenerateEnabled && (
         <HoverButton
@@ -263,6 +249,20 @@ const HoverButtons = ({
           isLast={isLast}
           dataTestId={isLast ? 'continue-generation-button' : undefined}
           className="active"
+        />
+      )}
+
+      {/* Feedback Buttons */}
+      {!isCreatedByUser && handleFeedback != null && (
+        <Feedback
+          handleFeedback={handleFeedback}
+          feedback={message.feedback}
+          isLast={isLast}
+          conversationId={conversation.conversationId ?? undefined}
+          messageId={message.messageId ?? undefined}
+          endpoint={endpoint || undefined}
+          model={conversation?.model ?? undefined}
+          agent_id={conversation?.agent_id ?? undefined}
         />
       )}
     </div>
