@@ -10,12 +10,6 @@ router.use(requireJwtAuth);
 router.post('/', async (req, res) => {
   const { feedback_reason, feedback_title, feedback_details, feedback_suggested_fix, conversation, metadata, contact } = req.body;
 
-  if (!feedback_reason || !feedback_title) {
-    return res.status(400).json({
-      error: 'feedback_reason and feedback_title are required',
-    });
-  }
-
   const request_id = req.body.request_id || uuidv4();
 
   try {
