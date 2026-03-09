@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,9 +28,6 @@ jobs:
             BRANCH="${GITHUB_REF_NAME//\//-}"
             echo "tag=${BRANCH}" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
