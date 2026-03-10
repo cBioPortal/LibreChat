@@ -35,6 +35,90 @@ const ICONS = {
   Search,
 };
 
+const FEEDBACK_REASON_LABELS: Record<string, string> = {
+  incorrect: 'com_ui_product_feedback_reason_incorrect',
+  unfaithful: 'com_ui_product_feedback_reason_unfaithful',
+  safety_or_legal_concern: 'com_ui_product_feedback_reason_safety',
+  style_tone_conciseness: 'com_ui_product_feedback_reason_style',
+  other: 'com_ui_product_feedback_reason_other',
+};
+
+type FeedbackSummary =
+  | { type: 'thumbsUp'; tags: { key: string; label: string }[]; comment: string }
+  | {
+      type: 'thumbsDown';
+      reasons: string[];
+      details: string;
+      expectedOutcome: string;
+      suggestedSystemPrompt?: string;
+    };
+
+function parseFeedbackSummary(
+  fb: TFeedback,
+  positiveTags: { key: string; label: string }[],
+  localize: (key: string) => string,
+): FeedbackSummary {
+  if (fb.rating === 'thumbsUp') {
+    const tagKeys: string[] = [];
+    let comment = '';
+
+    if (fb.tag?.key) {
+      tagKeys.push(fb.tag.key);
+    }
+
+    if (fb.text) {
+      const lines = fb.text.split('\n');
+      const firstLine = lines[0];
+      if (firstLine.startsWith('tags:')) {
+        const extraKeys = firstLine.slice(5).split(',').filter(Boolean);
+        for (const k of extraKeys) {
+          if (!tagKeys.includes(k)) {
+            tagKeys.push(k);
+          }
+        }
+        comment = lines.slice(1).join('\n').trim();
+      } else {
+        comment = fb.text.trim();
+      }
+    }
+
+    const tags = tagKeys.map((key) => {
+      const found = positiveTags.find((t) => t.key === key);
+      return { key, label: found ? localize(found.label) : key };
+    });
+
+    return { type: 'thumbsUp', tags, comment };
+  }
+
+  // thumbsDown
+  let reasons: string[] = [];
+  let details = '';
+  let expectedOutcome = '';
+  let suggestedSystemPrompt: string | undefined;
+
+  if (fb.text) {
+    try {
+      const parsed = JSON.parse(fb.text);
+      if (parsed.feedback_reason) {
+        reasons = parsed.feedback_reason
+          .split(',')
+          .filter(Boolean)
+          .map((r: string) => {
+            const labelKey = FEEDBACK_REASON_LABELS[r];
+            return labelKey ? localize(labelKey) : r;
+          });
+      }
+      details = parsed.feedback_details || '';
+      expectedOutcome = parsed.feedback_suggested_fix || '';
+      suggestedSystemPrompt = parsed.suggested_system_prompt;
+    } catch {
+      details = fb.text;
+    }
+  }
+
+  return { type: 'thumbsDown', reasons, details, expectedOutcome, suggestedSystemPrompt };
+}
+
 function FeedbackButtons({
   isLast,
   feedback,
@@ -141,6 +225,7 @@ export default function Feedback({
   const [openDialog, setOpenDialog] = useState(false);
   const [openThumbsUpModal, setOpenThumbsUpModal] = useState(false);
   const [openProductFeedback, setOpenProductFeedback] = useState(false);
+  const [openSummary, setOpenSummary] = useState(false);
   const [feedback, setFeedback] = useState<TFeedback | undefined>(initialFeedback);
   const { data: startupConfig } = useGetStartupConfig();
   const productFeedbackEnabled = startupConfig?.productFeedbackEnabled === true;
@@ -234,6 +319,56 @@ export default function Feedback({
     setOpenDialog(false);
   }, [handleFeedback]);
 
+  const handleSummaryDelete = useCallback(() => {
+    propagateMinimal(undefined);
+    setOpenSummary(false);
+  }, [propagateMinimal]);
+
+  const handleSummaryUpdate = useCallback(() => {
+    setOpenSummary(false);
+    if (feedback?.rating === 'thumbsUp') {
+      // Pre-fill thumbs-up modal from stored feedback
+      const tagKeys: string[] = [];
+      if (feedback.tag?.key) {
+        tagKeys.push(feedback.tag.key);
+      }
+      let comment = '';
+      if (feedback.text) {
+        const lines = feedback.text.split('\n');
+        if (lines[0].startsWith('tags:')) {
+          const extraKeys = lines[0].slice(5).split(',').filter(Boolean);
+          for (const k of extraKeys) {
+            if (!tagKeys.includes(k)) {
+              tagKeys.push(k);
+            }
+          }
+          comment = lines.slice(1).join('\n').trim();
+        } else {
+          comment = feedback.text.trim();
+        }
+      }
+      setSelectedUpTags(new Set(tagKeys));
+      setThumbsUpComment(comment);
+      setOpenThumbsUpModal(true);
+    } else {
+      // Re-open product feedback modal (or legacy dialog)
+      if (productFeedbackEnabled) {
+        setOpenProductFeedback(true);
+      } else {
+        setOpenDialog(true);
+      }
+    }
+  }, [feedback, productFeedbackEnabled]);
+
+  const feedbackSummary = useMemo(() => {
+    if (!feedback) return null;
+    return parseFeedbackSummary(
+      feedback,
+      positiveTags,
+      (key) => localize(key as Parameters<typeof localize>[0]),
+    );
+  }, [feedback, positiveTags, localize]);
+
   const handleProductFeedbackSubmit = useCallback(
     (payload: ProductFeedbackPayload) => {
       // Immediately show single thumbs-down button
@@ -317,9 +452,7 @@ export default function Feedback({
     return (
       <button
         className={classes}
-        onClick={() => {
-          handleButtonFeedback(undefined);
-        }}
+        onClick={() => setOpenSummary(true)}
         type="button"
         title={label}
         aria-pressed="true"
@@ -433,6 +566,101 @@ export default function Feedback({
           onSubmit={handleProductFeedbackSubmit}
         />
       )}
+
+      {/* Feedback summary dialog */}
+      <OGDialog open={openSummary} onOpenChange={setOpenSummary}>
+        <OGDialogContent className="w-11/12 max-w-md">
+          <OGDialogTitle className="flex items-center gap-2 text-lg font-semibold leading-6">
+            {feedback?.rating === 'thumbsUp' ? (
+              <ThumbUpIcon size="19" bold className="text-green-500" />
+            ) : (
+              <ThumbDownIcon size="19" bold className="text-red-500" />
+            )}
+            <span className="text-token-text-primary">Your Feedback</span>
+          </OGDialogTitle>
+
+          {feedbackSummary?.type === 'thumbsUp' && (
+            <div className="flex flex-col gap-3">
+              {feedbackSummary.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {feedbackSummary.tags.map((tag) => (
+                    <span
+                      key={tag.key}
+                      className="rounded-full border border-border-medium bg-surface-secondary px-3 py-1.5 text-sm text-text-primary"
+                    >
+                      {tag.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {feedbackSummary.comment && (
+                <div className="rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary whitespace-pre-wrap">
+                  {feedbackSummary.comment}
+                </div>
+              )}
+              {feedbackSummary.tags.length === 0 && !feedbackSummary.comment && (
+                <p className="text-sm text-text-secondary">No additional details provided.</p>
+              )}
+            </div>
+          )}
+
+          {feedbackSummary?.type === 'thumbsDown' && (
+            <div className="flex flex-col gap-3">
+              {feedbackSummary.reasons.length > 0 && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-text-secondary uppercase">
+                    Categories
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {feedbackSummary.reasons.map((reason) => (
+                      <span
+                        key={reason}
+                        className="rounded-full border border-border-medium bg-surface-secondary px-3 py-1.5 text-sm text-text-primary"
+                      >
+                        {reason}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {feedbackSummary.details && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-text-secondary uppercase">
+                    Details
+                  </p>
+                  <div className="rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary whitespace-pre-wrap">
+                    {feedbackSummary.details}
+                  </div>
+                </div>
+              )}
+              {feedbackSummary.expectedOutcome && (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-text-secondary uppercase">
+                    Expected Outcome
+                  </p>
+                  <div className="rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary whitespace-pre-wrap">
+                    {feedbackSummary.expectedOutcome}
+                  </div>
+                </div>
+              )}
+              {feedbackSummary.reasons.length === 0 &&
+                !feedbackSummary.details &&
+                !feedbackSummary.expectedOutcome && (
+                  <p className="text-sm text-text-secondary">No additional details provided.</p>
+                )}
+            </div>
+          )}
+
+          <div className="mt-2 flex items-end justify-end gap-2">
+            <Button variant="destructive" onClick={handleSummaryDelete}>
+              {localize('com_ui_delete')}
+            </Button>
+            <Button variant="submit" onClick={handleSummaryUpdate}>
+              Update
+            </Button>
+          </div>
+        </OGDialogContent>
+      </OGDialog>
     </>
   );
 }
