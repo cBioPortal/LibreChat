@@ -269,13 +269,11 @@ export default function Feedback({
 
   const handleThumbsUpSubmit = useCallback(() => {
     const tagKeys = Array.from(selectedUpTags);
-    const firstTag = tagKeys.length > 0
-      ? positiveTags.find((t) => t.key === tagKeys[0])
-      : undefined;
-    const text = [
-      tagKeys.length > 1 ? `tags:${tagKeys.join(',')}` : '',
-      thumbsUpComment.trim(),
-    ].filter(Boolean).join('\n');
+    const firstTag =
+      tagKeys.length > 0 ? positiveTags.find((t) => t.key === tagKeys[0]) : undefined;
+    const text = [tagKeys.length > 1 ? `tags:${tagKeys.join(',')}` : '', thumbsUpComment.trim()]
+      .filter(Boolean)
+      .join('\n');
 
     propagateMinimal({
       rating: 'thumbsUp',
@@ -362,10 +360,8 @@ export default function Feedback({
 
   const feedbackSummary = useMemo(() => {
     if (!feedback) return null;
-    return parseFeedbackSummary(
-      feedback,
-      positiveTags,
-      (key) => localize(key as Parameters<typeof localize>[0]),
+    return parseFeedbackSummary(feedback, positiveTags, (key) =>
+      localize(key as Parameters<typeof localize>[0]),
     );
   }, [feedback, positiveTags, localize]);
 
@@ -498,7 +494,7 @@ export default function Feedback({
                     className={cn(
                       'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors duration-200',
                       active
-                        ? 'border-text-primary bg-text-primary text-surface-primary font-semibold'
+                        ? 'border-text-primary bg-text-primary font-semibold text-surface-primary'
                         : 'border-border-medium bg-transparent text-text-secondary hover:border-text-secondary hover:text-text-primary',
                     )}
                   >
@@ -518,10 +514,10 @@ export default function Feedback({
             />
             <div className="flex items-end justify-end gap-2">
               <Button variant="outline" onClick={handleThumbsUpCancel}>
-                Cancel
+                {localize('com_ui_cancel')}
               </Button>
               <Button variant="submit" onClick={handleThumbsUpSubmit}>
-                Submit
+                {localize('com_ui_product_feedback_submit' as Parameters<typeof localize>[0])}
               </Button>
             </div>
           </div>
@@ -576,7 +572,9 @@ export default function Feedback({
             ) : (
               <ThumbDownIcon size="19" bold className="text-red-500" />
             )}
-            <span className="text-token-text-primary">Your Feedback</span>
+            <span className="text-token-text-primary">
+              {localize('com_ui_feedback_your_feedback' as Parameters<typeof localize>[0])}
+            </span>
           </OGDialogTitle>
 
           {feedbackSummary?.type === 'thumbsUp' && (
@@ -594,12 +592,14 @@ export default function Feedback({
                 </div>
               )}
               {feedbackSummary.comment && (
-                <div className="rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary whitespace-pre-wrap">
+                <div className="whitespace-pre-wrap rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary">
                   {feedbackSummary.comment}
                 </div>
               )}
               {feedbackSummary.tags.length === 0 && !feedbackSummary.comment && (
-                <p className="text-sm text-text-secondary">No additional details provided.</p>
+                <p className="text-sm text-text-secondary">
+                  {localize('com_ui_feedback_no_details' as Parameters<typeof localize>[0])}
+                </p>
               )}
             </div>
           )}
@@ -608,8 +608,8 @@ export default function Feedback({
             <div className="flex flex-col gap-3">
               {feedbackSummary.reasons.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium text-text-secondary uppercase">
-                    Categories
+                  <p className="mb-1.5 text-xs font-medium uppercase text-text-secondary">
+                    {localize('com_ui_feedback_categories' as Parameters<typeof localize>[0])}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {feedbackSummary.reasons.map((reason) => (
@@ -625,20 +625,20 @@ export default function Feedback({
               )}
               {feedbackSummary.details && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium text-text-secondary uppercase">
-                    Details
+                  <p className="mb-1.5 text-xs font-medium uppercase text-text-secondary">
+                    {localize('com_ui_feedback_details' as Parameters<typeof localize>[0])}
                   </p>
-                  <div className="rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary whitespace-pre-wrap">
+                  <div className="whitespace-pre-wrap rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary">
                     {feedbackSummary.details}
                   </div>
                 </div>
               )}
               {feedbackSummary.expectedOutcome && (
                 <div>
-                  <p className="mb-1.5 text-xs font-medium text-text-secondary uppercase">
-                    Expected Outcome
+                  <p className="mb-1.5 text-xs font-medium uppercase text-text-secondary">
+                    {localize('com_ui_feedback_expected_outcome' as Parameters<typeof localize>[0])}
                   </p>
-                  <div className="rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary whitespace-pre-wrap">
+                  <div className="whitespace-pre-wrap rounded-xl border border-border-light bg-surface-secondary p-3 text-sm text-text-primary">
                     {feedbackSummary.expectedOutcome}
                   </div>
                 </div>
@@ -646,7 +646,9 @@ export default function Feedback({
               {feedbackSummary.reasons.length === 0 &&
                 !feedbackSummary.details &&
                 !feedbackSummary.expectedOutcome && (
-                  <p className="text-sm text-text-secondary">No additional details provided.</p>
+                  <p className="text-sm text-text-secondary">
+                    {localize('com_ui_feedback_no_details' as Parameters<typeof localize>[0])}
+                  </p>
                 )}
             </div>
           )}
@@ -656,7 +658,7 @@ export default function Feedback({
               {localize('com_ui_delete')}
             </Button>
             <Button variant="submit" onClick={handleSummaryUpdate}>
-              Update
+              {localize('com_ui_update')}
             </Button>
           </div>
         </OGDialogContent>
