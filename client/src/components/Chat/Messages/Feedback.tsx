@@ -367,28 +367,27 @@ export default function Feedback({
 
   const handleProductFeedbackSubmit = useCallback(
     (payload: ProductFeedbackPayload) => {
-      // Immediately show single thumbs-down button
-      setFeedback({ rating: 'thumbsDown' });
       // Store the full feedback payload as JSON in the existing feedback text field
-      handleFeedback({
-        feedback: {
-          rating: 'thumbsDown',
-          text: JSON.stringify({
-            request_id: payload.request_id,
-            feedback_reason: payload.feedback_reason,
-            feedback_title: payload.feedback_title,
-            feedback_details: payload.feedback_details,
-            feedback_suggested_fix: payload.feedback_suggested_fix,
-            suggested_system_prompt: payload.suggested_system_prompt,
-            conversation_id: payload.conversation_id,
-            message_id: payload.message_id,
-            messages: payload.messages,
-            endpoint: payload.endpoint,
-            model: payload.model,
-            agent_id: payload.agent_id,
-          }),
-        },
-      });
+      const fullFeedback: TFeedback = {
+        rating: 'thumbsDown',
+        tag: undefined,
+        text: JSON.stringify({
+          request_id: payload.request_id,
+          feedback_reason: payload.feedback_reason,
+          feedback_title: payload.feedback_title,
+          feedback_details: payload.feedback_details,
+          feedback_suggested_fix: payload.feedback_suggested_fix,
+          suggested_system_prompt: payload.suggested_system_prompt,
+          conversation_id: payload.conversation_id,
+          message_id: payload.message_id,
+          messages: payload.messages,
+          endpoint: payload.endpoint,
+          model: payload.model,
+          agent_id: payload.agent_id,
+        }),
+      };
+      setFeedback(fullFeedback);
+      handleFeedback({ feedback: fullFeedback });
 
       const mutationPayload = {
         request_id: payload.request_id,
