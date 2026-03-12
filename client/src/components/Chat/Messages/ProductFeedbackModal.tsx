@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { QueryKeys } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
@@ -7,16 +7,18 @@ import { useGetStartupConfig } from '~/data-provider';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { cn } from '~/utils';
 
-interface ProductFeedbackModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  conversationId: string;
-  messageId: string;
-  endpoint?: string;
-  model?: string;
-  agent_id?: string;
-  onSubmit?: (payload: ProductFeedbackPayload) => void;
-  onSuccess?: (issueUrl: string) => void;
+export type FeedbackReason =
+  | 'incorrect'
+  | 'unfaithful'
+  | 'safety_or_legal_concern'
+  | 'style_tone_conciseness'
+  | 'other';
+
+export interface ProductFeedbackInitialValues {
+  reasons: FeedbackReason[];
+  details: string;
+  suggestedFix: string;
+  suggestedSystemPrompt?: string;
 }
 
 interface ConversationMessage {
@@ -42,12 +44,19 @@ export interface ProductFeedbackPayload {
   agent_id?: string;
 }
 
-type FeedbackReason =
-  | 'incorrect'
-  | 'unfaithful'
-  | 'safety_or_legal_concern'
-  | 'style_tone_conciseness'
-  | 'other';
+interface ProductFeedbackModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  conversationId: string;
+  messageId: string;
+  endpoint?: string;
+  model?: string;
+  agent_id?: string;
+  onSubmit?: (payload: ProductFeedbackPayload) => void;
+  onSuccess?: (issueUrl: string) => void;
+  initialValues?: ProductFeedbackInitialValues;
+  onDelete?: () => void;
+}
 
 const FEEDBACK_REASONS: { value: FeedbackReason; labelKey: string }[] = [
   { value: 'incorrect', labelKey: 'com_ui_product_feedback_reason_incorrect' },
@@ -75,6 +84,8 @@ export default function ProductFeedbackModal({
   agent_id,
   onSubmit,
   onSuccess,
+  initialValues,
+  onDelete,
 }: ProductFeedbackModalProps) {
   const localize = useLocalize();
   const { user } = useAuthContext();
@@ -87,6 +98,17 @@ export default function ProductFeedbackModal({
   const [suggestedSystemPrompt, setSuggestedSystemPrompt] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open && initialValues) {
+      setFeedbackReasons(initialValues.reasons);
+      setFeedbackDetails(initialValues.details);
+      setFeedbackSuggestedFix(initialValues.suggestedFix);
+      setSuggestedSystemPrompt(initialValues.suggestedSystemPrompt ?? '');
+      setError(null);
+      setIsSubmitting(false);
+    }
+  }, [open, initialValues]);
 
   const isPowerUser = useMemo(() => {
     const emails = startupConfig?.powerUserEmails;
@@ -310,6 +332,11 @@ export default function ProductFeedbackModal({
 
           {/* Action Buttons */}
           <div className="flex items-end justify-end gap-2">
+            {onDelete && (
+              <Button variant="destructive" onClick={onDelete} className="mr-auto">
+                {localize('com_ui_delete')}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
               {localize('com_ui_product_feedback_cancel' as Parameters<typeof localize>[0])}
             </Button>
