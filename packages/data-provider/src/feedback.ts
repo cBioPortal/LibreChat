@@ -109,7 +109,7 @@ export const feedbackRatingSchema = z.enum(FEEDBACK_RATINGS);
 
 export const feedbackSchema = z.object({
   rating: feedbackRatingSchema,
-  tag: feedbackTagKeySchema,
+  tag: feedbackTagKeySchema.optional(),
   text: z.string().max(1024).optional(),
 });
 
@@ -122,13 +122,13 @@ export type TFeedback = {
 };
 
 export function toMinimalFeedback(feedback: TFeedback | undefined): TMinimalFeedback | undefined {
-  if (!feedback?.rating || !feedback?.tag || !feedback.tag.key) {
+  if (!feedback?.rating) {
     return undefined;
   }
 
   return {
     rating: feedback.rating,
-    tag: feedback.tag.key,
+    tag: feedback.tag?.key,
     text: feedback.text,
   };
 }

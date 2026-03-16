@@ -400,7 +400,7 @@ export const useUpdateFeedbackMutation = (
                   feedback: data.feedback
                     ? {
                         rating: data.feedback.rating,
-                        tag: { key: data.feedback.tag },
+                        tag: data.feedback.tag ? { key: data.feedback.tag } : undefined,
                         text: data.feedback.text,
                       }
                     : undefined,
