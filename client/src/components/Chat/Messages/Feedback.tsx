@@ -203,7 +203,13 @@ export default function Feedback({
       ...(text ? { text } : {}),
     });
     setOpenThumbsUpModal(false);
-  }, [selectedUpTags, thumbsUpComment, positiveTags, propagateMinimal]);
+    showToast({
+      message: localize('com_ui_product_feedback_success' as Parameters<typeof localize>[0]),
+      severity: NotificationSeverity.SUCCESS,
+      showIcon: true,
+      duration: 5000,
+    });
+  }, [selectedUpTags, thumbsUpComment, positiveTags, propagateMinimal, showToast, localize]);
 
   const handleThumbsUpCancel = useCallback(() => {
     setOpenThumbsUpModal(false);
