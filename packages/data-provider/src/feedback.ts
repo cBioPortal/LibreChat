@@ -128,7 +128,7 @@ export function toMinimalFeedback(feedback: TFeedback | undefined): TMinimalFeed
 
   return {
     rating: feedback.rating,
-    tag: feedback.tag?.key,
+    tag: feedback.tag?.key ?? 'other',
     text: feedback.text,
   };
 }

@@ -430,10 +430,29 @@ async function sendFeedbackToLangfuse({ messageId, conversationId, feedback }) {
       return;
     }
 
-    const comment = [
-      feedback.tag?.key || feedback.tag || '',
-      feedback.text || '',
-    ].filter(Boolean).join(': ');
+    let comment = '';
+    let feedbackText = feedback.text || '';
+    // Product feedback stores JSON in text — extract human-readable parts
+    if (feedbackText.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(feedbackText);
+        const parts = [];
+        if (parsed.feedback_reason) {
+          parts.push(`reason: ${parsed.feedback_reason}`);
+        }
+        if (parsed.feedback_details) {
+          parts.push(parsed.feedback_details);
+        }
+        if (parsed.feedback_suggested_fix) {
+          parts.push(`expected: ${parsed.feedback_suggested_fix}`);
+        }
+        feedbackText = parts.join(' | ');
+      } catch {
+        // keep original text
+      }
+    }
+    const tag = feedback.tag?.key || feedback.tag || '';
+    comment = [tag, feedbackText].filter(Boolean).join(': ');
 
     await fetch(`${baseUrl}/api/public/scores`, {
       method: 'POST',
