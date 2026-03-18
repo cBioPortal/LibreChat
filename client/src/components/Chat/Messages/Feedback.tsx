@@ -204,12 +204,12 @@ export default function Feedback({
     });
     setOpenThumbsUpModal(false);
     showToast({
-      message: localize('com_ui_product_feedback_success' as Parameters<typeof localize>[0]),
+      message: 'Thank you for your feedback!',
       severity: NotificationSeverity.SUCCESS,
       showIcon: true,
       duration: 5000,
     });
-  }, [selectedUpTags, thumbsUpComment, positiveTags, propagateMinimal, showToast, localize]);
+  }, [selectedUpTags, thumbsUpComment, positiveTags, propagateMinimal, showToast]);
 
   const handleThumbsUpCancel = useCallback(() => {
     setOpenThumbsUpModal(false);
@@ -308,7 +308,7 @@ export default function Feedback({
       submitProductFeedback.mutate(mutationPayload, {
         onSuccess: () => {
           showToast({
-            message: localize('com_ui_product_feedback_success' as Parameters<typeof localize>[0]),
+            message: 'Thank you for your feedback!',
             severity: NotificationSeverity.SUCCESS,
             showIcon: true,
             duration: 5000,
