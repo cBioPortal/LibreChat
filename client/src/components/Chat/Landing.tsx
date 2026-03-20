@@ -63,7 +63,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   });
 
   const name = entity?.name ?? '';
-  const description = (entity?.description || conversation?.greeting) ?? '';
+  const description = (conversation?.greeting || entity?.description) ?? '';
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
