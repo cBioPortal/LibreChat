@@ -77,7 +77,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const brandedSpecDescription = (modelSpec?.showOnLanding && modelSpec.description) || '';
   const name = entity?.name ?? brandedSpecLabel;
   const description =
-    (entity?.description || brandedSpecDescription || conversation?.greeting) ?? '';
+    (conversation?.greeting || entity?.description || brandedSpecDescription) ?? '';
   const descriptionIsHTML = description.trim().startsWith('<');
 
   const sanitizeDescription = useMemo(

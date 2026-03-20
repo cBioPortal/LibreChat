@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TooltipAnchor } from '@librechat/client';
-import { Constants, getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
+import { getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
 import type { TModelSpec } from 'librechat-data-provider';
 import type { ModelSelectorProps } from '~/common';
 import {
@@ -11,7 +11,7 @@ import {
 } from './components';
 import { ModelSelectorProvider, useModelSelectorContext } from './ModelSelectorContext';
 import { useShortcutAriaKey, useShortcutHint } from '~/hooks/useKeyboardShortcuts';
-import { ModelSelectorChatProvider, useModelSelectorChatContext } from './ModelSelectorChatContext';
+import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
 import { getSelectedIcon, getDisplayValue } from './utils';
 import SpecIcon from './components/SpecIcon';
 import { CustomMenu as Menu } from './CustomMenu';
@@ -87,8 +87,6 @@ function ModelSelectorContent() {
     keyDialogEndpoint,
   } = useModelSelectorContext();
 
-  const { conversation } = useModelSelectorChatContext();
-
   // Check if all model specs are agent endpoints — if so, use button selector
   const allAgentSpecs = useMemo(() => {
     if (!modelSpecs || modelSpecs.length === 0) return false;
@@ -97,11 +95,7 @@ function ModelSelectorContent() {
     );
   }, [modelSpecs]);
 
-  // Hide agent buttons once a conversation has started
-  const conversationId = conversation?.conversationId;
-  const isNewConversation = !conversationId || conversationId === Constants.NEW_CONVO;
-
-  if (allAgentSpecs && modelSpecs && isNewConversation) {
+  if (allAgentSpecs && modelSpecs) {
     return (
       <AgentButtonSelector
         specs={modelSpecs}
@@ -110,10 +104,6 @@ function ModelSelectorContent() {
         onSelect={handleSelectSpec}
       />
     );
-  }
-
-  if (allAgentSpecs && modelSpecs && !isNewConversation) {
-    return null;
   }
 
   const selectedIcon = getSelectedIcon({
