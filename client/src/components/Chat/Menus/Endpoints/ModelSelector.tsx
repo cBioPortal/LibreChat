@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { TooltipAnchor } from '@librechat/client';
 import { getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
-import type { TModelSpec } from 'librechat-data-provider';
+import type { TModelSpec, TAgentsMap } from 'librechat-data-provider';
 import type { ModelSelectorProps } from '~/common';
 import {
   renderModelSpecs,
@@ -22,37 +22,51 @@ function AgentButtonSelector({
   specs,
   selectedSpec,
   endpointsConfig,
+  agentsMap,
   onSelect,
 }: {
   specs: TModelSpec[];
   selectedSpec: string | null;
   endpointsConfig: any;
+  agentsMap: TAgentsMap | undefined;
   onSelect: (spec: TModelSpec) => void;
 }) {
+  const localize = useLocalize();
   return (
     <div className="relative inline-flex flex-row items-center gap-1.5">
+      <span className="text-sm text-text-secondary">{localize('com_ui_switch_agent')}</span>
       {specs.map((spec) => {
         const isSelected = selectedSpec === spec.name;
+        const description =
+          spec.description ||
+          agentsMap?.[spec.preset?.agent_id ?? '']?.description ||
+          spec.label ||
+          spec.name;
         return (
-          <button
+          <TooltipAnchor
             key={spec.name}
-            type="button"
-            onClick={() => onSelect(spec)}
-            className={cn(
-              'my-1 flex h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors duration-200',
-              isSelected
-                ? 'border-text-primary bg-surface-active-alt font-semibold text-text-primary'
-                : 'border-border-light bg-presentation text-text-secondary hover:bg-surface-active-alt hover:text-text-primary',
-            )}
-            aria-pressed={isSelected}
-          >
-            {(spec.showIconInHeader !== false) && (
-              <div className="flex flex-shrink-0 items-center justify-center overflow-hidden">
-                <SpecIcon currentSpec={spec} endpointsConfig={endpointsConfig} />
-              </div>
-            )}
-            <span className="truncate">{spec.name}</span>
-          </button>
+            description={description}
+            render={
+              <button
+                type="button"
+                onClick={() => onSelect(spec)}
+                className={cn(
+                  'my-1 flex h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors duration-200',
+                  isSelected
+                    ? 'border-text-primary bg-surface-active-alt font-semibold text-text-primary'
+                    : 'border-border-light bg-presentation text-text-secondary hover:bg-surface-active-alt hover:text-text-primary',
+                )}
+                aria-pressed={isSelected}
+              >
+                {(spec.showIconInHeader !== false) && (
+                  <div className="flex flex-shrink-0 items-center justify-center overflow-hidden">
+                    <SpecIcon currentSpec={spec} endpointsConfig={endpointsConfig} />
+                  </div>
+                )}
+                <span className="truncate">{spec.name}</span>
+              </button>
+            }
+          />
         );
       })}
     </div>
@@ -96,6 +110,7 @@ function ModelSelectorContent() {
         specs={modelSpecs}
         selectedSpec={selectedValues.modelSpec}
         endpointsConfig={endpointsConfig}
+        agentsMap={agentsMap}
         onSelect={handleSelectSpec}
       />
     );
