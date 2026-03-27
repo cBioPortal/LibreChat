@@ -30,6 +30,7 @@ export type TModelSpec = {
   groupIcon?: string | EModelEndpoint;
   showIconInMenu?: boolean;
   showIconInHeader?: boolean;
+  showSwitchAgent?: boolean;
   iconURL?: string | EModelEndpoint; // Allow using project-included icons
   authType?: AuthType;
   webSearch?: boolean;
@@ -50,6 +51,7 @@ export const tModelSpecSchema = z.object({
   groupIcon: z.union([z.string(), eModelEndpointSchema]).optional(),
   showIconInMenu: z.boolean().optional(),
   showIconInHeader: z.boolean().optional(),
+  showSwitchAgent: z.boolean().optional(),
   iconURL: z.union([z.string(), eModelEndpointSchema]).optional(),
   authType: authTypeSchema.optional(),
   webSearch: z.boolean().optional(),
