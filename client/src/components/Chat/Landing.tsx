@@ -1,11 +1,15 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { useRecoilValue } from 'recoil';
 import { easings } from '@react-spring/web';
-import { EModelEndpoint } from 'librechat-data-provider';
+import { EModelEndpoint, isAgentsEndpoint } from 'librechat-data-provider';
+import type { TModelSpec, TConversation } from 'librechat-data-provider';
 import { BirthdayIcon, TooltipAnchor, SplitText } from '@librechat/client';
 import {
   getIconEndpoint,
   getEntity,
   getModelSpec,
+  getModelSpecIconURL,
+  getConvoSwitchLogic,
   createConfigHtmlSanitizer,
   CONFIG_HTML_MEDIA_TAGS,
   CONFIG_HTML_MEDIA_ATTR,
@@ -13,7 +17,8 @@ import {
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
-import { useLocalize, useAuthContext } from '~/hooks';
+import { useLocalize, useAuthContext, useDefaultConvo, useNewConvo } from '~/hooks';
+import store from '~/store';
 
 const containerClassName =
   'shadow-stroke relative flex h-full items-center justify-center rounded-full bg-white dark:bg-presentation dark:text-white text-black dark:after:shadow-none ';
@@ -42,6 +47,9 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { user } = useAuthContext();
   const localize = useLocalize();
+  const { newConversation } = useNewConvo();
+  const getDefaultConversation = useDefaultConvo();
+  const modularChat = useRecoilValue(store.modularChat);
 
   const [textHasMultipleLines, setTextHasMultipleLines] = useState(false);
   const [lineCount, setLineCount] = useState(1);
@@ -88,6 +96,74 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       }),
     [],
   );
+
+  const modelSpecs = startupConfig?.modelSpecs?.list ?? [];
+
+  const otherSpec = useMemo(() => {
+    const switchableSpecs = modelSpecs.filter(
+      (s: TModelSpec) => s.showSwitchAgent && isAgentsEndpoint(s.preset?.endpoint),
+    );
+    if (switchableSpecs.length < 2) {
+      return undefined;
+    }
+    const currentAgentId = conversation?.agent_id;
+    return switchableSpecs.find((s: TModelSpec) => s.preset?.agent_id !== currentAgentId)
+      ?? switchableSpecs[1];
+  }, [modelSpecs, conversation?.agent_id]);
+
+  const handleSwitchAgent = useCallback(() => {
+    if (!otherSpec) {
+      return;
+    }
+    const preset = { ...otherSpec.preset };
+    preset.iconURL = getModelSpecIconURL(otherSpec);
+    preset.spec = otherSpec.name;
+    const newEndpoint = preset.endpoint ?? '';
+    if (!newEndpoint) {
+      return;
+    }
+
+    const {
+      template,
+      shouldSwitch,
+      isNewModular,
+      newEndpointType,
+      isCurrentModular,
+      isExistingConversation,
+    } = getConvoSwitchLogic({
+      newEndpoint,
+      modularChat,
+      conversation,
+      endpointsConfig,
+    });
+
+    if (newEndpointType) {
+      preset.endpointType = newEndpointType;
+    }
+
+    const isModular = isCurrentModular && isNewModular && shouldSwitch;
+    if (isExistingConversation && isModular) {
+      template.endpointType = newEndpointType as EModelEndpoint | undefined;
+      const currentConvo = getDefaultConversation({
+        conversation: { ...(conversation ?? {}), endpointType: template.endpointType },
+        preset: template,
+        cleanOutput: true,
+      });
+      newConversation({
+        template: currentConvo,
+        preset,
+        keepLatestMessage: true,
+        keepAddedConvos: true,
+      });
+      return;
+    }
+
+    newConversation({
+      template: { ...(template as Partial<TConversation>) },
+      preset,
+      keepAddedConvos: isModular,
+    });
+  }, [otherSpec, modularChat, conversation, endpointsConfig, getDefaultConversation, newConversation]);
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
@@ -224,16 +300,51 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
           )}
         </div>
         {description &&
-          (descriptionIsHTML ? (
-            <div
-              className="animate-fadeIn mt-4 flex max-w-md items-center justify-center gap-2 text-center text-sm font-normal text-text-primary [&_img]:inline-block [&_img]:h-4 [&_img]:w-4"
-              dangerouslySetInnerHTML={{ __html: sanitizeDescription(description) }}
-            />
-          ) : (
-            <div className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary">
-              {description}
-            </div>
-          ))}
+          (descriptionIsHTML
+            ? (() => {
+                const linkMatch = description.match(
+                  /<a\s+[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/i,
+                );
+                const learnMoreUrl = linkMatch ? linkMatch[1] : '';
+                const learnMoreText = linkMatch ? linkMatch[2] : '';
+                const cleanDesc = description.replace(
+                  /\s*(<br\s*\/?\s*>)*\s*<a\s+[^>]*>.*?<\/a>\s*$/i,
+                  '',
+                );
+                return (
+                  <>
+                    <div
+                      className="animate-fadeIn mt-4 flex max-w-md items-center justify-center gap-2 text-center text-sm font-normal text-text-primary [&_img]:inline-block [&_img]:h-4 [&_img]:w-4"
+                      dangerouslySetInnerHTML={{ __html: sanitizeDescription(cleanDesc) }}
+                    />
+                    <div className="animate-fadeIn mt-4 flex flex-row items-center gap-3">
+                      {learnMoreUrl && (
+                        <a
+                          href={learnMoreUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-gray-50 transition-colors duration-200 hover:bg-gray-700"
+                        >
+                          {learnMoreText || 'Learn more'}
+                        </a>
+                      )}
+                      {otherSpec && (
+                        <button
+                          onClick={handleSwitchAgent}
+                          className="rounded-full border border-border-light bg-surface-secondary px-4 py-2 text-sm font-medium text-text-primary transition-colors duration-200 hover:bg-surface-tertiary"
+                        >
+                          {localize('com_ui_switch_agent')}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                );
+              })()
+            : (
+              <div className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary">
+                {description}
+              </div>
+            ))}
       </div>
     </div>
   );
