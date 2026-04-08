@@ -1110,6 +1110,10 @@ class AgentClient extends BaseClient {
         titlePromptTemplate: endpointConfig?.titlePromptTemplate,
         chainOptions: {
           signal: abortController.signal,
+          configurable: {
+            user_id: this.user ?? this.options.req.user?.id,
+            thread_id: this.conversationId,
+          },
           callbacks: [
             {
               handleLLMEnd,
