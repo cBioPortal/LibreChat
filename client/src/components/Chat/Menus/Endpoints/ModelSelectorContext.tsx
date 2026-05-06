@@ -65,15 +65,10 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       return specs;
     }
 
-    /**
-     * Filter modelSpecs to only include agents the user has access to.
-     * Use agentsMap which already contains permission-filtered agents (consistent with other components).
-     */
     return specs.filter((spec) => {
       if (spec.preset?.endpoint === EModelEndpoint.agents && spec.preset?.agent_id) {
-        return spec.preset.agent_id in agentsMap;
+        return spec.preset.agent_id in agentsMap || spec.showIconInMenu || spec.showIconInHeader;
       }
-      /** Keep non-agent modelSpecs */
       return true;
     });
   }, [startupConfig, agentsMap]);
