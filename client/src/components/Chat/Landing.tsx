@@ -97,19 +97,21 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     [],
   );
 
-  const modelSpecs = startupConfig?.modelSpecs?.list ?? [];
-
   const otherSpec = useMemo(() => {
-    const switchableSpecs = modelSpecs.filter(
+    const specs = startupConfig?.modelSpecs?.list ?? [];
+    const switchableSpecs = specs.filter(
       (s: TModelSpec) => s.showSwitchAgent && isAgentsEndpoint(s.preset?.endpoint),
     );
     if (switchableSpecs.length < 2) {
       return undefined;
     }
     const currentAgentId = conversation?.agent_id;
-    return switchableSpecs.find((s: TModelSpec) => s.preset?.agent_id !== currentAgentId)
-      ?? switchableSpecs[1];
-  }, [modelSpecs, conversation?.agent_id]);
+    const currentIndex = switchableSpecs.findIndex(
+      (s: TModelSpec) => s.preset?.agent_id === currentAgentId,
+    );
+    const nextIndex = (currentIndex + 1) % switchableSpecs.length;
+    return switchableSpecs[nextIndex];
+  }, [startupConfig?.modelSpecs?.list, conversation?.agent_id]);
 
   const handleSwitchAgent = useCallback(() => {
     if (!otherSpec) {
@@ -163,7 +165,14 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       preset,
       keepAddedConvos: isModular,
     });
-  }, [otherSpec, modularChat, conversation, endpointsConfig, getDefaultConversation, newConversation]);
+  }, [
+    otherSpec,
+    modularChat,
+    conversation,
+    endpointsConfig,
+    getDefaultConversation,
+    newConversation,
+  ]);
 
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
