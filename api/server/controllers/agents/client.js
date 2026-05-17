@@ -1298,18 +1298,14 @@ class AgentClient extends BaseClient {
           runName: 'TitleRun',
           signal: abortController.signal,
           configurable: {
-            user_id: this.options.req.user?.email ?? this.user ?? this.options.req.user?.id,
             thread_id: this.conversationId,
+            user_id: this.options.req.user?.email ?? this.user ?? this.options.req.user?.id,
           },
           callbacks: [
             {
               handleLLMEnd,
             },
           ],
-          configurable: {
-            thread_id: this.conversationId,
-            user_id: this.user ?? this.options.req.user?.id,
-          },
         },
       });
 
