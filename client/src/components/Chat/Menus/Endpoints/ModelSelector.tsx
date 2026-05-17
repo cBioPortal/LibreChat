@@ -58,7 +58,7 @@ function AgentButtonSelector({
                 )}
                 aria-pressed={isSelected}
               >
-                {(spec.showIconInHeader !== false) && (
+                {spec.showIconInHeader !== false && (
                   <div className="flex flex-shrink-0 items-center justify-center overflow-hidden">
                     <SpecIcon currentSpec={spec} endpointsConfig={endpointsConfig} />
                   </div>

@@ -8,7 +8,15 @@ const router = express.Router();
 router.use(requireJwtAuth);
 
 router.post('/', async (req, res) => {
-  const { feedback_reason, feedback_title, feedback_details, feedback_suggested_fix, conversation, metadata, contact } = req.body;
+  const {
+    feedback_reason,
+    feedback_title,
+    feedback_details,
+    feedback_suggested_fix,
+    conversation,
+    metadata,
+    contact,
+  } = req.body;
 
   const request_id = req.body.request_id || uuidv4();
 

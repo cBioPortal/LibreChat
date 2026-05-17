@@ -255,7 +255,7 @@ export default function ProductFeedbackModal({
                   className={cn(
                     'rounded-full border px-3 py-1.5 text-sm transition-colors duration-200',
                     feedbackReasons.includes(value)
-                      ? 'border-text-primary bg-text-primary text-surface-primary font-semibold'
+                      ? 'border-text-primary bg-text-primary font-semibold text-surface-primary'
                       : 'border-border-medium bg-transparent text-text-secondary hover:border-text-secondary hover:text-text-primary',
                   )}
                 >
@@ -307,9 +307,7 @@ export default function ProductFeedbackModal({
               <label className="mb-1 block text-sm font-medium text-text-primary">
                 Suggested System Prompt
                 <span className="ml-1 text-xs font-normal text-text-secondary">
-                  ({localize(
-                    'com_ui_product_feedback_optional' as Parameters<typeof localize>[0],
-                  )})
+                  ({localize('com_ui_product_feedback_optional' as Parameters<typeof localize>[0])})
                 </span>
               </label>
               <textarea

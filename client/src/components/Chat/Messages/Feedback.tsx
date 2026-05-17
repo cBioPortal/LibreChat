@@ -455,11 +455,7 @@ export default function Feedback({
             />
             <div className="flex items-end justify-end gap-2">
               {feedback?.rating === 'thumbsUp' && (
-                <Button
-                  variant="destructive"
-                  onClick={handleThumbsUpDelete}
-                  className="mr-auto"
-                >
+                <Button variant="destructive" onClick={handleThumbsUpDelete} className="mr-auto">
                   {localize('com_ui_delete')}
                 </Button>
               )}
@@ -514,7 +510,6 @@ export default function Feedback({
           onDelete={feedback?.rating === 'thumbsDown' ? handleProductFeedbackDelete : undefined}
         />
       )}
-
     </>
   );
 }
