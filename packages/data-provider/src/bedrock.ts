@@ -169,7 +169,14 @@ function getBedrockAnthropicBetaHeaders(model: string): string[] {
     betaHeaders.push(BEDROCK_OUTPUT_128K_BETA);
   }
 
-  if (isClaude4PlusModel) {
+  // cBioPortal: upstream auto-enables fine-grained tool streaming for Claude 4+
+  // Bedrock models, but the @librechat/agents handler currently fails to
+  // reassemble the streamed JSON-arg chunks into proper `tool_use` content
+  // blocks for some turns — the raw `<function_calls>` XML lands in a plain
+  // `text` block and the frontend (correctly) renders it as text. Gate the
+  // beta behind an env var so we can opt in once the SDK reassembly is fixed.
+  // Set BEDROCK_FINE_GRAINED_TOOL_STREAMING=true to re-enable.
+  if (isClaude4PlusModel && process.env.BEDROCK_FINE_GRAINED_TOOL_STREAMING === 'true') {
     betaHeaders.push(BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA);
   }
 

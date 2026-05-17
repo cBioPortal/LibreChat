@@ -2,7 +2,6 @@ import {
   AuthType,
   EModelEndpoint,
   BEDROCK_OUTPUT_128K_BETA,
-  BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA,
 } from 'librechat-data-provider';
 import { initializeBedrock } from './initialize';
 import type { BaseInitializeParams, BedrockLLMConfigResult } from '~/types';
@@ -28,7 +27,11 @@ jest.mock('~/utils', () => ({
 }));
 
 const mockedCheckUserKeyExpiry = jest.mocked(checkUserKeyExpiry);
-const BEDROCK_CLAUDE_4_BETAS = [BEDROCK_OUTPUT_128K_BETA, BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA];
+// cBioPortal: fine-grained tool streaming beta is gated behind an env var
+// (see packages/data-provider/src/bedrock.ts). With
+// BEDROCK_FINE_GRAINED_TOOL_STREAMING unset, only the 128k output beta is
+// auto-applied for Claude 4+ Bedrock models.
+const BEDROCK_CLAUDE_4_BETAS = [BEDROCK_OUTPUT_128K_BETA];
 
 const createMockParams = (
   overrides: Partial<{

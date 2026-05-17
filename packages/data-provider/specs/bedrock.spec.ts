@@ -8,10 +8,12 @@ import {
   bedrockInputParser,
   bedrockInputSchema,
   supportsContext1m,
-  BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA,
 } from '../src/bedrock';
 
-const BEDROCK_CLAUDE_4_BETAS = [BEDROCK_OUTPUT_128K_BETA, BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA];
+// cBioPortal: fine-grained tool streaming beta is gated behind an env var
+// (see bedrock.ts). With BEDROCK_FINE_GRAINED_TOOL_STREAMING unset, only the
+// 128k output beta is auto-applied for Claude 4+ Bedrock models.
+const BEDROCK_CLAUDE_4_BETAS = [BEDROCK_OUTPUT_128K_BETA];
 
 describe('supportsAdaptiveThinking', () => {
   test('should return true for claude-opus-4-6', () => {
