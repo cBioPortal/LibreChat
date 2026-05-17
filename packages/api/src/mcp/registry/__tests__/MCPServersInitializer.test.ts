@@ -1,11 +1,11 @@
 import { logger } from '@librechat/data-schemas';
 import * as t from '~/mcp/types';
-import { MCPConnectionFactory } from '~/mcp/MCPConnectionFactory';
-import { MCPServersInitializer } from '~/mcp/registry/MCPServersInitializer';
-import { MCPConnection } from '~/mcp/connection';
 import { registryStatusCache } from '~/mcp/registry/cache/RegistryStatusCache';
+import { MCPServersInitializer } from '~/mcp/registry/MCPServersInitializer';
 import { MCPServerInspector } from '~/mcp/registry/MCPServerInspector';
 import { MCPServersRegistry } from '~/mcp/registry/MCPServersRegistry';
+import { MCPConnectionFactory } from '~/mcp/MCPConnectionFactory';
+import { MCPConnection } from '~/mcp/connection';
 
 const FIXED_TIME = 1699564800000;
 const originalDateNow = Date.now;
@@ -225,11 +225,12 @@ describe('MCPServersInitializer', () => {
       await MCPServersInitializer.initialize(testConfigs);
 
       // Verify all configs were processed by inspector
-      // Signature: inspect(serverName, rawConfig, connection?, allowedDomains?)
+      // Signature: inspect(serverName, rawConfig, connection?, allowedDomains?, allowedAddresses?)
       expect(mockInspect).toHaveBeenCalledTimes(5);
       expect(mockInspect).toHaveBeenCalledWith(
         'disabled_server',
         testConfigs.disabled_server,
+        undefined,
         undefined,
         undefined,
       );
@@ -238,10 +239,12 @@ describe('MCPServersInitializer', () => {
         testConfigs.oauth_server,
         undefined,
         undefined,
+        undefined,
       );
       expect(mockInspect).toHaveBeenCalledWith(
         'file_tools_server',
         testConfigs.file_tools_server,
+        undefined,
         undefined,
         undefined,
       );
@@ -250,10 +253,12 @@ describe('MCPServersInitializer', () => {
         testConfigs.search_tools_server,
         undefined,
         undefined,
+        undefined,
       );
       expect(mockInspect).toHaveBeenCalledWith(
         'remote_no_oauth_server',
         testConfigs.remote_no_oauth_server,
+        undefined,
         undefined,
         undefined,
       );
@@ -296,9 +301,10 @@ describe('MCPServersInitializer', () => {
       const searchToolsServer = await registry.getServerConfig('search_tools_server');
       expect(searchToolsServer).toBeDefined();
 
-      // Verify file_tools_server was not added (due to inspection failure)
+      // Verify file_tools_server was stored as a stub (for recovery via reinitialize)
       const fileToolsServer = await registry.getServerConfig('file_tools_server');
-      expect(fileToolsServer).toBeUndefined();
+      expect(fileToolsServer).toBeDefined();
+      expect(fileToolsServer?.inspectionFailed).toBe(true);
     });
 
     it('should log server configuration after initialization', async () => {

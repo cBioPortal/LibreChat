@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { TPreset } from './schemas';
+import type { TModelSpecPreset } from './schemas';
 import {
   EModelEndpoint,
-  tPresetSchema,
+  tModelSpecPresetSchema,
   eModelEndpointSchema,
   AuthType,
   authTypeSchema,
@@ -11,7 +11,7 @@ import {
 export type TModelSpec = {
   name: string;
   label: string;
-  preset: TPreset;
+  preset: TModelSpecPreset;
   order?: number;
   default?: boolean;
   description?: string;
@@ -43,7 +43,7 @@ export type TModelSpec = {
 export const tModelSpecSchema = z.object({
   name: z.string(),
   label: z.string(),
-  preset: tPresetSchema,
+  preset: tModelSpecPresetSchema,
   order: z.number().optional(),
   default: z.boolean().optional(),
   description: z.string().optional(),
@@ -64,7 +64,7 @@ export const tModelSpecSchema = z.object({
 export const specsConfigSchema = z.object({
   enforce: z.boolean().default(false),
   prioritize: z.boolean().default(true),
-  list: z.array(tModelSpecSchema).min(1),
+  list: z.array(tModelSpecSchema).default([]),
   addedEndpoints: z.array(z.union([z.string(), eModelEndpointSchema])).optional(),
 });
 

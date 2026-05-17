@@ -1,6 +1,9 @@
 import { Constants } from 'librechat-data-provider';
 import type { TFile, TMessage } from 'librechat-data-provider';
 
+/** Minimal shape for request file entries (from `req.body.files`) */
+type RequestFile = { file_id?: string };
+
 /** Fields to strip from files before client transmission */
 const FILE_STRIP_FIELDS = ['text', '_id', '__v'] as const;
 
@@ -30,6 +33,27 @@ export function sanitizeFileForTransmit<T extends Partial<TFile>>(
     delete sanitized[field as keyof typeof sanitized];
   }
   return sanitized;
+}
+
+/** Filters attachments to those whose `file_id` appears in `requestFiles`, then sanitizes each. */
+export function buildMessageFiles<T extends Partial<TFile>>(
+  requestFiles: RequestFile[],
+  attachments: T[],
+): Omit<T, (typeof FILE_STRIP_FIELDS)[number]>[] {
+  const requestFileIds = new Set<string>();
+  for (const f of requestFiles) {
+    if (f.file_id) {
+      requestFileIds.add(f.file_id);
+    }
+  }
+
+  const files: Omit<T, (typeof FILE_STRIP_FIELDS)[number]>[] = [];
+  for (const attachment of attachments) {
+    if (attachment.file_id != null && requestFileIds.has(attachment.file_id)) {
+      files.push(sanitizeFileForTransmit(attachment));
+    }
+  }
+  return files;
 }
 
 /**
@@ -68,11 +92,21 @@ export function sanitizeMessageForTransmit<T extends Partial<TMessage>>(
   return sanitized;
 }
 
-/** Minimal message shape for thread traversal */
+/** Minimal message shape for thread traversal.
+ *
+ * Both `files` and `attachments` carry `file_id` references, but they
+ * land on different roles by convention: user-uploaded files live on
+ * `messages.files` (set when the user attaches a file in chat), while
+ * code-execution outputs live on `messages.attachments` (set by
+ * `processCodeOutput` when a tool call produces a file). The thread
+ * walk must visit both so the next turn's `tool_resources.execute_code.file_ids`
+ * picks up files the assistant generated, not just files the user
+ * uploaded. */
 type ThreadMessage = {
   messageId: string;
   parentMessageId?: string | null;
   files?: Array<{ file_id?: string }>;
+  attachments?: Array<{ file_id?: string }>;
 };
 
 /** Result of thread data extraction */
@@ -123,11 +157,21 @@ export function getThreadData(
 
     result.messageIds.push(message.messageId);
 
-    /** Collect file IDs from this message */
+    /** Collect file IDs from BOTH `files` (user uploads) and
+     *  `attachments` (code-execution outputs from `processCodeOutput`).
+     *  Walking only one half drops half the relevant refs — see
+     *  the type doc on `ThreadMessage` for the role split. */
     if (message.files) {
       for (const file of message.files) {
         if (file.file_id) {
           fileIdSet.add(file.file_id);
+        }
+      }
+    }
+    if (message.attachments) {
+      for (const attachment of message.attachments) {
+        if (attachment.file_id) {
+          fileIdSet.add(attachment.file_id);
         }
       }
     }

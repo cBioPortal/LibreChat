@@ -1,4 +1,9 @@
-import { AuthType, EModelEndpoint } from 'librechat-data-provider';
+import {
+  AuthType,
+  EModelEndpoint,
+  BEDROCK_OUTPUT_128K_BETA,
+  BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA,
+} from 'librechat-data-provider';
 import { initializeBedrock } from './initialize';
 import type { BaseInitializeParams, BedrockLLMConfigResult } from '~/types';
 import { checkUserKeyExpiry } from '~/utils';
@@ -23,6 +28,7 @@ jest.mock('~/utils', () => ({
 }));
 
 const mockedCheckUserKeyExpiry = jest.mocked(checkUserKeyExpiry);
+const BEDROCK_CLAUDE_4_BETAS = [BEDROCK_OUTPUT_128K_BETA, BEDROCK_FINE_GRAINED_TOOL_STREAMING_BETA];
 
 const createMockParams = (
   overrides: Partial<{
@@ -627,9 +633,7 @@ describe('initializeBedrock', () => {
 
       expect(amrf.thinking).toEqual({ type: 'adaptive' });
       expect(result.llmConfig.maxTokens).toBeUndefined();
-      expect(amrf.anthropic_beta).toEqual(
-        expect.arrayContaining(['output-128k-2025-02-19', 'context-1m-2025-08-07']),
-      );
+      expect(amrf.anthropic_beta).toEqual(expect.arrayContaining(BEDROCK_CLAUDE_4_BETAS));
     });
 
     it('should pass effort via output_config for Opus 4.6', async () => {
@@ -645,6 +649,22 @@ describe('initializeBedrock', () => {
 
       expect(amrf.thinking).toEqual({ type: 'adaptive' });
       expect(amrf.output_config).toEqual({ effort: 'medium' });
+    });
+
+    it('should preserve user-provided anthropic beta values for Opus 4.6', async () => {
+      const params = createMockParams({
+        model_parameters: {
+          model: 'anthropic.claude-opus-4-6-v1',
+          additionalModelRequestFields: {
+            anthropic_beta: ['context-1m-2025-08-07'],
+          },
+        },
+      });
+
+      const result = (await initializeBedrock(params)) as BedrockLLMConfigResult;
+      const amrf = result.llmConfig.additionalModelRequestFields as Record<string, unknown>;
+
+      expect(amrf.anthropic_beta).toEqual(['context-1m-2025-08-07', ...BEDROCK_CLAUDE_4_BETAS]);
     });
 
     it('should respect user-provided maxTokens for Opus 4.6', async () => {
@@ -720,6 +740,68 @@ describe('initializeBedrock', () => {
       expect(amrf.thinking).toEqual({ type: 'enabled', budget_tokens: 2000 });
       expect(amrf.output_config).toBeUndefined();
       expect(amrf.effort).toBeUndefined();
+    });
+  });
+
+  describe('Bedrock reasoning_effort for Moonshot/ZAI models', () => {
+    it('should map reasoning_effort to reasoning_config for Moonshot Kimi K2.5', async () => {
+      const params = createMockParams({
+        model_parameters: {
+          model: 'moonshotai.kimi-k2.5',
+          reasoning_effort: 'high',
+        },
+      });
+
+      const result = (await initializeBedrock(params)) as BedrockLLMConfigResult;
+      const amrf = result.llmConfig.additionalModelRequestFields as Record<string, unknown>;
+
+      expect(amrf.reasoning_config).toBe('high');
+      expect(amrf.reasoning_effort).toBeUndefined();
+      expect(amrf.thinking).toBeUndefined();
+      expect(amrf.anthropic_beta).toBeUndefined();
+    });
+
+    it('should map reasoning_effort to reasoning_config for ZAI GLM', async () => {
+      const params = createMockParams({
+        model_parameters: {
+          model: 'zai.glm-4.7',
+          reasoning_effort: 'medium',
+        },
+      });
+
+      const result = (await initializeBedrock(params)) as BedrockLLMConfigResult;
+      const amrf = result.llmConfig.additionalModelRequestFields as Record<string, unknown>;
+
+      expect(amrf.reasoning_config).toBe('medium');
+      expect(amrf.reasoning_effort).toBeUndefined();
+    });
+
+    it('should not include reasoning_config when reasoning_effort is unset', async () => {
+      const params = createMockParams({
+        model_parameters: {
+          model: 'moonshotai.kimi-k2.5',
+          reasoning_effort: '',
+        },
+      });
+
+      const result = (await initializeBedrock(params)) as BedrockLLMConfigResult;
+
+      expect(result.llmConfig.additionalModelRequestFields).toBeUndefined();
+    });
+
+    it('should not map reasoning_effort to reasoning_config for Anthropic models', async () => {
+      const params = createMockParams({
+        model_parameters: {
+          model: 'anthropic.claude-opus-4-6-v1',
+          reasoning_effort: 'high',
+        },
+      });
+
+      const result = (await initializeBedrock(params)) as BedrockLLMConfigResult;
+      const amrf = result.llmConfig.additionalModelRequestFields as Record<string, unknown>;
+
+      expect(amrf.reasoning_config).toBeUndefined();
+      expect(amrf.thinking).toEqual({ type: 'adaptive' });
     });
   });
 });
