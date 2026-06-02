@@ -21,7 +21,7 @@ import { useLatestMessage } from '~/hooks/Messages/useLatestMessage';
 import { useAgentsMapContext } from '~/Providers/AgentsMapContext';
 import useGetSender from '~/hooks/Conversations/useGetSender';
 import useFileHandling from '~/hooks/Files/useFileHandling';
-import { useInteractionHealthCheck } from '~/data-provider';
+import { useGetStartupConfig, useInteractionHealthCheck } from '~/data-provider';
 import { useChatContext } from '~/Providers/ChatContext';
 import { globalAudioId } from '~/common';
 import { useLocalize } from '~/hooks';
@@ -46,6 +46,7 @@ export default function useTextarea({
   const getSender = useGetSender();
   const isComposing = useRef(false);
   const agentsMap = useAgentsMapContext();
+  const { data: startupConfig } = useGetStartupConfig();
   const { handleFiles } = useFileHandling();
   const assistantMap = useAssistantsMapContext();
   const checkHealth = useInteractionHealthCheck();
@@ -79,6 +80,11 @@ export default function useTextarea({
     assistant_id: conversation?.assistant_id,
   });
   const entityName = entity?.name ?? '';
+  const modelSpecPlaceholder =
+    startupConfig?.modelSpecs?.list?.find(
+      (spec) =>
+        spec.name === conversation?.spec || spec.preset?.agent_id === conversation?.agent_id,
+    )?.placeholder ?? '';
 
   const isNotAppendable =
     latestMessage?.error === true && latestMessage.isCreatedByUser === true && !isAssistant;
@@ -106,6 +112,9 @@ export default function useTextarea({
       const currentEndpoint = conversation?.endpoint ?? '';
       const currentAgentId = conversation?.agent_id ?? '';
       const currentAssistantId = conversation?.assistant_id ?? '';
+      if (isAgent && modelSpecPlaceholder) {
+        return modelSpecPlaceholder;
+      }
       if (isAgent && (!currentAgentId || !agentsMap?.[currentAgentId])) {
         return localize('com_endpoint_agent_placeholder');
       } else if (
@@ -159,6 +168,7 @@ export default function useTextarea({
     getSender,
     agentsMap,
     entityName,
+    modelSpecPlaceholder,
     textAreaRef,
     isAssistant,
     assistantMap,

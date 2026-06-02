@@ -40,6 +40,10 @@ function Header() {
   });
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
+  const showModelSelector = useMemo(() => {
+    const modelSpecs = startupConfig?.modelSpecs?.list ?? [];
+    return interfaceConfig.modelSelect === true || modelSpecs.length !== 1;
+  }, [interfaceConfig.modelSelect, startupConfig?.modelSpecs?.list]);
 
   return (
     <div className="via-presentation/70 md:from-presentation/80 md:via-presentation/50 2xl:from-presentation/0 absolute top-0 z-10 flex h-[52px] w-full items-center justify-between bg-gradient-to-b from-presentation to-transparent p-2 font-semibold text-text-primary 2xl:via-transparent">
@@ -53,7 +57,7 @@ function Header() {
                 !isSmallScreen ? 'transition-all duration-200 ease-in-out' : '',
               )}
             >
-              <ModelSelector startupConfig={startupConfig} />
+              {showModelSelector && <ModelSelector startupConfig={startupConfig} />}
               {interfaceConfig.presets === true && interfaceConfig.modelSelect && <PresetsMenu />}
               {hasAccessToBookmarks === true && <BookmarkMenu />}
               {hasAccessToMultiConvo === true && <AddMultiConvo />}

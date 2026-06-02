@@ -81,11 +81,23 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     [conversation?.spec, startupConfig],
   );
 
+  const currentSpec = useMemo(() => {
+    const specs = startupConfig?.modelSpecs?.list ?? [];
+    return specs.find(
+      (s: TModelSpec) =>
+        s.name === conversation?.spec || s.preset?.agent_id === conversation?.agent_id,
+    );
+  }, [startupConfig?.modelSpecs?.list, conversation?.spec, conversation?.agent_id]);
+
   const brandedSpecLabel = modelSpec?.showOnLanding ? modelSpec.label : '';
   const brandedSpecDescription = (modelSpec?.showOnLanding && modelSpec.description) || '';
-  const name = entity?.name ?? brandedSpecLabel;
+  const specName = currentSpec?.label?.split(/\s+-\s+/)[0] ?? '';
+  const name = entity?.name ?? brandedSpecLabel ?? specName;
   const description =
-    (conversation?.greeting || entity?.description || brandedSpecDescription) ?? '';
+    (conversation?.greeting ||
+      entity?.description ||
+      currentSpec?.description ||
+      brandedSpecDescription) ?? '';
   const descriptionIsHTML = description.trim().startsWith('<');
 
   const sanitizeDescription = useMemo(
@@ -98,6 +110,9 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   );
 
   const otherSpec = useMemo(() => {
+    if (startupConfig?.interface?.showSwitchAgent === false) {
+      return undefined;
+    }
     const specs = startupConfig?.modelSpecs?.list ?? [];
     const switchableSpecs = specs.filter(
       (s: TModelSpec) => s.showSwitchAgent && isAgentsEndpoint(s.preset?.endpoint),
@@ -111,7 +126,11 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     );
     const nextIndex = (currentIndex + 1) % switchableSpecs.length;
     return switchableSpecs[nextIndex];
-  }, [startupConfig?.modelSpecs?.list, conversation?.agent_id]);
+  }, [
+    startupConfig?.interface?.showSwitchAgent,
+    startupConfig?.modelSpecs?.list,
+    conversation?.agent_id,
+  ]);
 
   const handleSwitchAgent = useCallback(() => {
     if (!otherSpec) {

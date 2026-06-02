@@ -1193,6 +1193,7 @@ export const interfaceSchema = z
         }),
       ])
       .optional(),
+    showSwitchAgent: z.boolean().optional(),
     temporaryChat: z.boolean().optional(),
     temporaryChatRetention: z.number().min(1).max(8760).optional(),
     autoSubmitFromUrl: z.boolean().optional(),
@@ -1276,6 +1277,7 @@ export const interfaceSchema = z
       share: false,
       public: false,
     },
+    showSwitchAgent: true,
     temporaryChat: true,
     autoSubmitFromUrl: true,
     runCode: true,

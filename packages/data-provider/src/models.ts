@@ -18,6 +18,7 @@ export type TModelSpec = {
   default?: boolean;
   softDefault?: boolean;
   description?: string;
+  placeholder?: string;
   /**
    * Optional group name for organizing specs in the UI selector.
    * - If it matches an endpoint name (e.g., "openAI", "groq"), the spec appears nested under that endpoint
@@ -38,6 +39,16 @@ export type TModelSpec = {
   /** Conversation starter prompts shown on the chat landing while this spec is active. */
   conversation_starters?: string[];
   showSwitchAgent?: boolean;
+  limitBadge?: {
+    messages?: string;
+    tokens?: string;
+  };
+  conversationStarterCategories?: Array<{
+    label: string;
+    description?: string;
+    icon?: string;
+    starters: string[];
+  }>;
   iconURL?: string | EModelEndpoint; // Allow using project-included icons
   authType?: AuthType;
   /** Hide the chat input tool badge row while this model spec is active. */
@@ -57,6 +68,13 @@ export const modelSpecSubagentsSchema = z.object({
   agent_ids: z.array(z.string()).max(MAX_SUBAGENTS).optional(),
 });
 
+const tConversationStarterCategorySchema = z.object({
+  label: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  starters: z.array(z.string()),
+});
+
 export const tModelSpecSchema = z.object({
   name: z.string(),
   label: z.string(),
@@ -65,6 +83,7 @@ export const tModelSpecSchema = z.object({
   default: z.boolean().optional(),
   softDefault: z.boolean().optional(),
   description: z.string().optional(),
+  placeholder: z.string().optional(),
   group: z.string().optional(),
   groupIcon: z.union([z.string(), eModelEndpointSchema]).optional(),
   showIconInMenu: z.boolean().optional(),
@@ -72,6 +91,13 @@ export const tModelSpecSchema = z.object({
   showOnLanding: z.boolean().optional(),
   conversation_starters: z.array(z.string()).optional(),
   showSwitchAgent: z.boolean().optional(),
+  limitBadge: z
+    .object({
+      messages: z.string().optional(),
+      tokens: z.string().optional(),
+    })
+    .optional(),
+  conversationStarterCategories: z.array(tConversationStarterCategorySchema).optional(),
   iconURL: z.union([z.string(), eModelEndpointSchema]).optional(),
   authType: authTypeSchema.optional(),
   hideBadgeRow: z.boolean().optional(),
