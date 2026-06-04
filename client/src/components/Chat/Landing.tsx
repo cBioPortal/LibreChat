@@ -74,10 +74,23 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     assistant_id: conversation?.assistant_id,
   });
 
-  const name = entity?.name ?? '';
-  const description = (conversation?.greeting || entity?.description) ?? '';
+  const currentSpec = useMemo(() => {
+    const specs = startupConfig?.modelSpecs?.list ?? [];
+    return specs.find(
+      (s: TModelSpec) =>
+        s.name === conversation?.spec || s.preset?.agent_id === conversation?.agent_id,
+    );
+  }, [startupConfig?.modelSpecs?.list, conversation?.spec, conversation?.agent_id]);
+
+  const specName = currentSpec?.label?.split(/\s+-\s+/)[0] ?? '';
+  const name = entity?.name ?? specName;
+  const description =
+    (conversation?.greeting || entity?.description || currentSpec?.description) ?? '';
 
   const otherSpec = useMemo(() => {
+    if (startupConfig?.interface?.showSwitchAgent === false) {
+      return undefined;
+    }
     const specs = startupConfig?.modelSpecs?.list ?? [];
     const switchableSpecs = specs.filter(
       (s: TModelSpec) => s.showSwitchAgent && isAgentsEndpoint(s.preset?.endpoint),
@@ -91,7 +104,11 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     );
     const nextIndex = (currentIndex + 1) % switchableSpecs.length;
     return switchableSpecs[nextIndex];
-  }, [startupConfig?.modelSpecs?.list, conversation?.agent_id]);
+  }, [
+    startupConfig?.interface?.showSwitchAgent,
+    startupConfig?.modelSpecs?.list,
+    conversation?.agent_id,
+  ]);
 
   const handleSwitchAgent = useCallback(() => {
     if (!otherSpec) {
@@ -298,30 +315,32 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             );
             return (
               <>
-                <div
-                  className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanDesc) }}
-                />
-                <div className="animate-fadeIn mt-4 flex flex-row items-center gap-3">
+                <div className="animate-fadeIn mt-4 max-w-md text-left text-sm font-normal text-text-primary">
+                  <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanDesc) }} />
                   {learnMoreUrl && (
-                    <a
-                      href={learnMoreUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-gray-50 transition-colors duration-200 hover:bg-gray-700"
-                    >
-                      {learnMoreText || 'Learn more'}
-                    </a>
+                    <>
+                      {' '}
+                      <a
+                        href={learnMoreUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-500 underline-offset-2 hover:underline dark:text-blue-400"
+                      >
+                        {learnMoreText || 'Learn more'}
+                      </a>
+                    </>
                   )}
-                  {otherSpec && (
+                </div>
+                {otherSpec && (
+                  <div className="animate-fadeIn mt-4 flex flex-row items-center gap-3">
                     <button
                       onClick={handleSwitchAgent}
                       className="rounded-full border border-border-light bg-surface-secondary px-4 py-2 text-sm font-medium text-text-primary transition-colors duration-200 hover:bg-surface-tertiary"
                     >
                       {localize('com_ui_switch_agent')}
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </>
             );
           })()}

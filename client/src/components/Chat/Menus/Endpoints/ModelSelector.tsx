@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { ModelSelectorProps } from '~/common';
+import { TooltipAnchor } from '@librechat/client';
 import { ModelSelectorProvider, useModelSelectorContext } from './ModelSelectorContext';
 import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
 import {
@@ -57,8 +58,19 @@ function ModelSelectorContent() {
       }),
     [localize, agentsMap, modelSpecs, selectedValues, mappedEndpoints],
   );
+  const selectedSpec = useMemo(
+    () => modelSpecs.find((spec) => spec.name === selectedValues.modelSpec),
+    [modelSpecs, selectedValues.modelSpec],
+  );
+  const selectedSpecTooltip = useMemo(() => {
+    if (!selectedSpec?.label) {
+      return '';
+    }
+    const [, description] = selectedSpec.label.split(/\s+-\s+(.+)/);
+    return description || selectedSpec.label;
+  }, [selectedSpec?.label]);
 
-  const trigger = (
+  const triggerButton = (
     <button
       className="my-1 flex h-10 w-full max-w-[70vw] items-center justify-center gap-2 rounded-xl border border-border-light bg-surface-secondary px-3 py-2 text-sm text-text-primary hover:bg-surface-tertiary"
       aria-label={localize('com_ui_select_model')}
@@ -70,6 +82,12 @@ function ModelSelectorContent() {
       )}
       <span className="flex-grow truncate text-left">{selectedDisplayValue}</span>
     </button>
+  );
+
+  const trigger = selectedSpecTooltip ? (
+    <TooltipAnchor description={selectedSpecTooltip} side="bottom" render={triggerButton} />
+  ) : (
+    triggerButton
   );
 
   return (

@@ -177,7 +177,7 @@ export const getDisplayValue = ({
 }) => {
   if (selectedValues.modelSpec) {
     const spec = modelSpecs.find((s) => s.name === selectedValues.modelSpec);
-    return spec?.label || spec?.name || localize('com_ui_select_model');
+    return spec?.label?.split(/\s+-\s+/)[0] || spec?.name || localize('com_ui_select_model');
   }
 
   if (selectedValues.model && selectedValues.endpoint) {

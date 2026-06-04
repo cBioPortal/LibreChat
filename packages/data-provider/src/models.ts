@@ -15,6 +15,7 @@ export type TModelSpec = {
   order?: number;
   default?: boolean;
   description?: string;
+  placeholder?: string;
   /**
    * Optional group name for organizing specs in the UI selector.
    * - If it matches an endpoint name (e.g., "openAI", "groq"), the spec appears nested under that endpoint
@@ -24,9 +25,28 @@ export type TModelSpec = {
   group?: string;
   showIconInMenu?: boolean;
   showIconInHeader?: boolean;
+  showSwitchAgent?: boolean;
+  limitBadge?: {
+    messages?: string;
+    tokens?: string;
+  };
+  conversationStarterCategories?: Array<{
+    label: string;
+    description?: string;
+    icon?: string;
+    starters: string[];
+  }>;
+  conversation_starters?: string[];
   iconURL?: string | EModelEndpoint; // Allow using project-included icons
   authType?: AuthType;
 };
+
+const tConversationStarterCategorySchema = z.object({
+  label: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  starters: z.array(z.string()),
+});
 
 export const tModelSpecSchema = z.object({
   name: z.string(),
@@ -35,9 +55,19 @@ export const tModelSpecSchema = z.object({
   order: z.number().optional(),
   default: z.boolean().optional(),
   description: z.string().optional(),
+  placeholder: z.string().optional(),
   group: z.string().optional(),
   showIconInMenu: z.boolean().optional(),
   showIconInHeader: z.boolean().optional(),
+  showSwitchAgent: z.boolean().optional(),
+  limitBadge: z
+    .object({
+      messages: z.string().optional(),
+      tokens: z.string().optional(),
+    })
+    .optional(),
+  conversationStarterCategories: z.array(tConversationStarterCategorySchema).optional(),
+  conversation_starters: z.array(z.string()).optional(),
   iconURL: z.union([z.string(), eModelEndpointSchema]).optional(),
   authType: authTypeSchema.optional(),
 });

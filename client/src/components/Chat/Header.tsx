@@ -34,6 +34,10 @@ export default function Header() {
   });
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
+  const showModelSelector = useMemo(() => {
+    const modelSpecs = startupConfig?.modelSpecs?.list ?? [];
+    return interfaceConfig.modelSelect === true || modelSpecs.length !== 1;
+  }, [interfaceConfig.modelSelect, startupConfig?.modelSpecs?.list]);
 
   return (
     <div className="sticky top-0 z-10 flex h-14 w-full items-center justify-between bg-white p-2 font-semibold text-text-primary dark:bg-gray-800">
@@ -56,7 +60,7 @@ export default function Header() {
               !isSmallScreen ? 'transition-all duration-200 ease-in-out' : ''
             } ${!navVisible ? 'translate-x-0' : 'translate-x-[-100px]'}`}
           >
-            <ModelSelector startupConfig={startupConfig} />
+            {showModelSelector && <ModelSelector startupConfig={startupConfig} />}
             {interfaceConfig.presets === true && interfaceConfig.modelSelect && <PresetsMenu />}
             {hasAccessToBookmarks === true && <BookmarkMenu />}
             {hasAccessToMultiConvo === true && <AddMultiConvo />}
