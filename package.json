@@ -121,7 +121,8 @@
   },
   "homepage": "https://librechat.ai/",
   "dependencies": {
-    "dd-trace": "^5"
+    "dd-trace": "^5",
+    "dompurify": "^3.2.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
