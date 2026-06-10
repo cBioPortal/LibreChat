@@ -1,5 +1,6 @@
 import {
   Tools,
+  Constants,
   ContentTypes,
   ToolCallTypes,
   imageGenTools,
@@ -10,6 +11,7 @@ import type { TMessageContentParts, TAttachment } from 'librechat-data-provider'
 import { OpenAIImageGen, EmptyText, Reasoning, ExecuteCode, AgentUpdate, Text } from './Parts';
 import { ErrorMessage } from './MessageContent';
 import RetrievalCall from './RetrievalCall';
+import AgentHandoff from './AgentHandoff';
 import CodeAnalyze from './CodeAnalyze';
 import Container from './Container';
 import WebSearch from './WebSearch';
@@ -65,6 +67,21 @@ const Part = memo(
       if (part.tool_call_ids != null && !text) {
         return null;
       }
+      /** Handle whitespace-only text to avoid layout shift */
+      if (text.length > 0 && /^\s*$/.test(text)) {
+        /** Show placeholder for whitespace-only last part during streaming */
+        if (isLast && showCursor) {
+          return (
+            <Container>
+              <EmptyText />
+            </Container>
+          );
+        }
+        /** Skip rendering non-last whitespace-only parts to avoid empty Container */
+        if (!isLast) {
+          return null;
+        }
+      }
       return (
         <Container>
           <Text text={text} isCreatedByUser={isCreatedByUser} showCursor={showCursor} />
@@ -75,7 +92,7 @@ const Part = memo(
       if (typeof reasoning !== 'string') {
         return null;
       }
-      return <Reasoning reasoning={reasoning} />;
+      return <Reasoning reasoning={reasoning} isLast={isLast ?? false} />;
     } else if (part.type === ContentTypes.TOOL_CALL) {
       const toolCall = part[ContentTypes.TOOL_CALL];
 
@@ -85,7 +102,11 @@ const Part = memo(
 
       const isToolCall =
         'args' in toolCall && (!toolCall.type || toolCall.type === ToolCallTypes.TOOL_CALL);
-      if (isToolCall && toolCall.name === Tools.execute_code) {
+      if (
+        isToolCall &&
+        (toolCall.name === Tools.execute_code ||
+          toolCall.name === Constants.PROGRAMMATIC_TOOL_CALLING)
+      ) {
         return (
           <ExecuteCode
             attachments={attachments}
@@ -97,7 +118,9 @@ const Part = memo(
         );
       } else if (
         isToolCall &&
-        (toolCall.name === 'image_gen_oai' || toolCall.name === 'image_edit_oai')
+        (toolCall.name === 'image_gen_oai' ||
+          toolCall.name === 'image_edit_oai' ||
+          toolCall.name === 'gemini_image_gen')
       ) {
         return (
           <OpenAIImageGen
@@ -119,6 +142,14 @@ const Part = memo(
             isLast={isLast}
           />
         );
+      } else if (isToolCall && toolCall.name?.startsWith(Constants.LC_TRANSFER_TO_)) {
+        return (
+          <AgentHandoff
+            args={toolCall.args ?? ''}
+            name={toolCall.name || ''}
+            output={toolCall.output ?? ''}
+          />
+        );
       } else if (isToolCall) {
         return (
           <ToolCall
@@ -130,6 +161,7 @@ const Part = memo(
             attachments={attachments}
             auth={toolCall.auth}
             expires_at={toolCall.expires_at}
+            isLast={isLast}
           />
         );
       } else if (toolCall.type === ToolCallTypes.CODE_INTERPRETER) {
@@ -178,6 +210,7 @@ const Part = memo(
             args={toolCall.function.arguments as string}
             name={toolCall.function.name}
             output={toolCall.function.output}
+            isLast={isLast}
           />
         );
       }

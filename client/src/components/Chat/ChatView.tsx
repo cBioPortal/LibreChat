@@ -7,8 +7,9 @@ import { Constants, buildTree } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
-import { useChatHelpers, useAddedResponse, useSSE } from '~/hooks';
+import { useAddedResponse, useResumeOnLoad, useAdaptiveSSE, useChatHelpers } from '~/hooks';
 import ConversationStarters from './Input/ConversationStarters';
+import LimitBadge from './Input/LimitBadge';
 import { useGetMessagesByConvoId } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
@@ -32,7 +33,6 @@ function LoadingSpinner() {
 function ChatView({ index = 0 }: { index?: number }) {
   const { conversationId } = useParams();
   const rootSubmission = useRecoilValue(store.submissionByIndex(index));
-  const addedSubmission = useRecoilValue(store.submissionByIndex(index + 1));
   const centerFormOnLanding = useRecoilValue(store.centerFormOnLanding);
 
   const fileMap = useFileMapContext();
@@ -49,10 +49,13 @@ function ChatView({ index = 0 }: { index?: number }) {
   });
 
   const chatHelpers = useChatHelpers(index, conversationId);
-  const addedChatHelpers = useAddedResponse({ rootIndex: index });
+  const addedChatHelpers = useAddedResponse();
 
-  useSSE(rootSubmission, chatHelpers, false);
-  useSSE(addedSubmission, addedChatHelpers, true);
+  useAdaptiveSSE(rootSubmission, chatHelpers, false, index);
+
+  // Auto-resume if navigating back to conversation with active job
+  // Wait for messages to load before resuming to avoid race condition
+  useResumeOnLoad(conversationId, chatHelpers.getMessages, index, !isLoading);
 
   const methods = useForm<ChatFormValues>({
     defaultValues: { text: '' },
@@ -79,7 +82,7 @@ function ChatView({ index = 0 }: { index?: number }) {
       <ChatContext.Provider value={chatHelpers}>
         <AddedChatContext.Provider value={addedChatHelpers}>
           <Presentation>
-            <div className="flex h-full w-full flex-col">
+            <div className="relative flex h-full w-full flex-col">
               {!isLoading && <Header />}
               <>
                 <div
@@ -98,6 +101,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                     )}
                   >
                     <ChatForm index={index} />
+                    {isLandingPage && <LimitBadge />}
                     {isLandingPage ? <ConversationStarters /> : <Footer />}
                   </div>
                 </div>

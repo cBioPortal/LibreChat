@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { logger } = require('@librechat/data-schemas');
 const {
+  countTokens,
   getBalanceConfig,
   extractFileContext,
   encodeAndFormatAudios,
@@ -17,14 +18,20 @@ const {
   EModelEndpoint,
   isParamEndpoint,
   isAgentsEndpoint,
+  isEphemeralAgentId,
   supportsBalanceCheck,
 } = require('librechat-data-provider');
-const { getMessages, saveMessage, updateMessage, saveConvo, getConvo } = require('~/models');
+const {
+  updateMessage,
+  getMessages,
+  saveMessage,
+  saveConvo,
+  getConvo,
+  getFiles,
+} = require('~/models');
 const { getStrategyFunctions } = require('~/server/services/Files/strategies');
 const { checkBalance } = require('~/models/balanceMethods');
 const { truncateToolCallOutputs } = require('./prompts');
-const countTokens = require('~/server/utils/countTokens');
-const { getFiles } = require('~/models/File');
 const TextStream = require('./TextStream');
 
 class BaseClient {
@@ -81,6 +88,7 @@ class BaseClient {
     throw new Error("Method 'getCompletion' must be implemented.");
   }
 
+  /** @type {sendCompletion} */
   async sendCompletion() {
     throw new Error("Method 'sendCompletion' must be implemented.");
   }
@@ -326,7 +334,7 @@ class BaseClient {
   }
 
   async handleTokenCountMap(tokenCountMap) {
-    if (this.clientName === EModelEndpoint.agents) {
+    if (this.clientName === EModelEndpoint.agents && !this.shouldSummarize) {
       return;
     }
     if (this.currentMessages.length === 0) {
@@ -498,7 +506,7 @@ class BaseClient {
       shouldSummarize &&
       diff === 1 &&
       firstMessage?.summary &&
-      this.previous_summary.messageId === firstMessage.messageId;
+      this.previous_summary?.messageId === firstMessage.messageId;
 
     if (diff > 0) {
       payload = formattedMessages.slice(diff);
@@ -529,16 +537,36 @@ class BaseClient {
     }
 
     if (usePrevSummary) {
-      summaryMessage = { role: 'system', content: firstMessage.summary };
+      const summaryRole = this.clientName === EModelEndpoint.agents ? 'user' : 'system';
+      const summaryContent = this.clientName === EModelEndpoint.agents
+        ? `[Previous conversation summary]\n${firstMessage.summary}`
+        : firstMessage.summary;
+      summaryMessage = { role: summaryRole, content: summaryContent };
       summaryTokenCount = firstMessage.summaryTokenCount;
-      payload.unshift(summaryMessage);
+      if (this.clientName === EModelEndpoint.agents) {
+        payload.unshift(
+          summaryMessage,
+          { role: 'assistant', content: 'Understood, I have the context from our previous conversation.' },
+        );
+      } else {
+        payload.unshift(summaryMessage);
+      }
       remainingContextTokens -= summaryTokenCount;
     } else if (shouldSummarize && messagesToRefine.length > 0) {
       ({ summaryMessage, summaryTokenCount } = await this.summarizeMessages({
         messagesToRefine,
         remainingContextTokens,
       }));
-      summaryMessage && payload.unshift(summaryMessage);
+      if (summaryMessage) {
+        if (this.clientName === EModelEndpoint.agents) {
+          payload.unshift(
+            summaryMessage,
+            { role: 'assistant', content: 'Understood, I have the context from our previous conversation.' },
+          );
+        } else {
+          payload.unshift(summaryMessage);
+        }
+      }
       remainingContextTokens -= summaryTokenCount;
     }
 
@@ -689,8 +717,7 @@ class BaseClient {
       });
     }
 
-    /** @type {string|string[]|undefined} */
-    const completion = await this.sendCompletion(payload, opts);
+    const { completion, metadata } = await this.sendCompletion(payload, opts);
     if (this.abortController) {
       this.abortController.requestCompleted = true;
     }
@@ -708,6 +735,7 @@ class BaseClient {
       iconURL: this.options.iconURL,
       endpoint: this.options.endpoint,
       ...(this.metadata ?? {}),
+      metadata: Object.keys(metadata ?? {}).length > 0 ? metadata : undefined,
     };
 
     if (typeof completion === 'string') {
@@ -930,6 +958,7 @@ class BaseClient {
       throw new Error('User mismatch.');
     }
 
+    const hasAddedConvo = this.options?.req?.body?.addedConvo != null;
     const savedMessage = await saveMessage(
       this.options?.req,
       {
@@ -937,6 +966,7 @@ class BaseClient {
         endpoint: this.options.endpoint,
         unfinished: false,
         user,
+        ...(hasAddedConvo && { addedConvo: true }),
       },
       { context: 'api/app/clients/BaseClient.js - saveMessageToDatabase #saveMessage' },
     );
@@ -959,6 +989,13 @@ class BaseClient {
 
     const unsetFields = {};
     const exceptions = new Set(['spec', 'iconURL']);
+    const hasNonEphemeralAgent =
+      isAgentsEndpoint(this.options.endpoint) &&
+      endpointOptions?.agent_id &&
+      !isEphemeralAgentId(endpointOptions.agent_id);
+    if (hasNonEphemeralAgent) {
+      exceptions.add('model');
+    }
     if (existingConvo != null) {
       this.fetchedConvo = true;
       for (const key in existingConvo) {
@@ -1010,7 +1047,8 @@ class BaseClient {
    * @param {Object} options - The options for the function.
    * @param {TMessage[]} options.messages - An array of message objects. Each object should have either an 'id' or 'messageId' property, and may have a 'parentMessageId' property.
    * @param {string} options.parentMessageId - The ID of the parent message to start the traversal from.
-   * @param {Function} [options.mapMethod] - An optional function to map over the ordered messages. If provided, it will be applied to each message in the resulting array.
+   * @param {Function} [options.mapMethod] - An optional function to map over the ordered messages. Applied conditionally based on mapCondition.
+   * @param {(message: TMessage) => boolean} [options.mapCondition] - An optional function to determine whether mapMethod should be applied to a given message. If not provided and mapMethod is set, mapMethod applies to all messages.
    * @param {boolean} [options.summary=false] - If set to true, the traversal modifies messages with 'summary' and 'summaryTokenCount' properties and stops at the message with a 'summary' property.
    * @returns {TMessage[]} An array containing the messages in the order they should be displayed, starting with the most recent message with a 'summary' property if the 'summary' option is true, and ending with the message identified by 'parentMessageId'.
    */
@@ -1018,6 +1056,7 @@ class BaseClient {
     messages,
     parentMessageId,
     mapMethod = null,
+    mapCondition = null,
     summary = false,
   }) {
     if (!messages || messages.length === 0) {
@@ -1052,7 +1091,9 @@ class BaseClient {
         message.tokenCount = message.summaryTokenCount;
       }
 
-      orderedMessages.push(message);
+      const shouldMap = mapMethod != null && (mapCondition != null ? mapCondition(message) : true);
+      const processedMessage = shouldMap ? mapMethod(message) : message;
+      orderedMessages.push(processedMessage);
 
       if (summary && message.summary) {
         break;
@@ -1063,11 +1104,6 @@ class BaseClient {
     }
 
     orderedMessages.reverse();
-
-    if (mapMethod) {
-      return orderedMessages.map(mapMethod);
-    }
-
     return orderedMessages;
   }
 
@@ -1212,7 +1248,8 @@ class BaseClient {
       this.options.req,
       attachments,
       {
-        provider: this.options.agent?.provider,
+        provider: this.options.agent?.provider ?? this.options.endpoint,
+        endpoint: this.options.agent?.endpoint ?? this.options.endpoint,
         useResponsesApi: this.options.agent?.model_parameters?.useResponsesApi,
       },
       getStrategyFunctions,
@@ -1228,7 +1265,10 @@ class BaseClient {
     const videoResult = await encodeAndFormatVideos(
       this.options.req,
       attachments,
-      this.options.agent.provider,
+      {
+        provider: this.options.agent?.provider ?? this.options.endpoint,
+        endpoint: this.options.agent?.endpoint ?? this.options.endpoint,
+      },
       getStrategyFunctions,
     );
     message.videos =
@@ -1240,7 +1280,10 @@ class BaseClient {
     const audioResult = await encodeAndFormatAudios(
       this.options.req,
       attachments,
-      this.options.agent.provider,
+      {
+        provider: this.options.agent?.provider ?? this.options.endpoint,
+        endpoint: this.options.agent?.endpoint ?? this.options.endpoint,
+      },
       getStrategyFunctions,
     );
     message.audios =

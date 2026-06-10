@@ -1,5 +1,5 @@
 import debounce from 'lodash/debounce';
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { EModelEndpoint, isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider';
 import type * as t from 'librechat-data-provider';
 import type { Endpoint, SelectedValues } from '~/common';
@@ -8,8 +8,9 @@ import {
   useSelectorEffects,
   useKeyDialog,
   useEndpoints,
+  useLocalize,
 } from '~/hooks';
-import { useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
+import { useAgentsMapContext, useAssistantsMapContext, useLiveAnnouncer } from '~/Providers';
 import { useGetEndpointsQuery, useListAgentsQuery } from '~/data-provider';
 import { useModelSelectorChatContext } from './ModelSelectorChatContext';
 import useSelectMention from '~/hooks/Input/useSelectMention';
@@ -57,8 +58,10 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
   const agentsMap = useAgentsMapContext();
   const assistantsMap = useAssistantsMapContext();
   const { data: endpointsConfig } = useGetEndpointsQuery();
-  const { endpoint, model, spec, agent_id, assistant_id, newConversation } =
+  const { endpoint, model, spec, agent_id, assistant_id, conversation, newConversation } =
     useModelSelectorChatContext();
+  const localize = useLocalize();
+  const { announcePolite } = useLiveAnnouncer();
   const modelSpecs = useMemo(() => {
     const specs = startupConfig?.modelSpecs?.list ?? [];
     if (!agentsMap) {
@@ -88,9 +91,25 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     endpointsConfig,
   });
 
+  const getModelDisplayName = useCallback(
+    (endpoint: Endpoint, model: string): string => {
+      if (isAgentsEndpoint(endpoint.value)) {
+        return endpoint.agentNames?.[model] ?? agentsMap?.[model]?.name ?? model;
+      }
+
+      if (isAssistantsEndpoint(endpoint.value)) {
+        return endpoint.assistantNames?.[model] ?? model;
+      }
+
+      return model;
+    },
+    [agentsMap],
+  );
+
   const { onSelectEndpoint, onSelectSpec } = useSelectMention({
     // presets,
     modelSpecs,
+    conversation,
     assistantsMap,
     endpointsConfig,
     newConversation,
@@ -98,10 +117,18 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
   });
 
   // State
-  const [selectedValues, setSelectedValues] = useState<SelectedValues>({
-    endpoint: endpoint || '',
-    model: model || '',
-    modelSpec: spec || '',
+  const [selectedValues, setSelectedValues] = useState<SelectedValues>(() => {
+    let initialModel = model || '';
+    if (isAgentsEndpoint(endpoint) && agent_id) {
+      initialModel = agent_id;
+    } else if (isAssistantsEndpoint(endpoint) && assistant_id) {
+      initialModel = assistant_id;
+    }
+    return {
+      endpoint: endpoint || '',
+      model: initialModel,
+      modelSpec: spec || '',
+    };
   });
   useSelectorEffects({
     agentsMap,
@@ -193,6 +220,10 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
       model,
       modelSpec: '',
     });
+
+    const modelDisplayName = getModelDisplayName(endpoint, model);
+    const announcement = localize('com_ui_model_selected', { 0: modelDisplayName });
+    announcePolite({ message: announcement, isStatus: true });
   };
 
   const value = {

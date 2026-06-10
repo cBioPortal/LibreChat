@@ -6,6 +6,8 @@ export type TShowToast = {
   showIcon?: boolean;
   duration?: number;
   status?: 'error' | 'success' | 'warning' | 'info';
+  link?: string;
+  linkText?: string;
 };
 
 export type Option = Record<string, unknown> & {
