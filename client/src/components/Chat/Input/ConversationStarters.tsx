@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useState } from 'react';
-import { ChevronDown, HeartPulse, MapPin, Search } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { EModelEndpoint, Constants } from 'librechat-data-provider';
 import type { TModelSpec } from 'librechat-data-provider';
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
@@ -13,14 +14,28 @@ import { getIconEndpoint, getEntity } from '~/utils';
 import { cn } from '~/utils/';
 import { useSubmitMessage } from '~/hooks';
 
-const categoryIcons: Record<string, LucideIcon> = {
-  analyze: HeartPulse,
-  heartbeat: HeartPulse,
-  map: MapPin,
-  navigate: MapPin,
-  search: Search,
-  explore: Search,
-};
+// Convert kebab/snake/space-separated input to PascalCase to match Lucide
+// export names (e.g. "book-open" → "BookOpen"). Already-PascalCase names
+// also fall through to the as-is lookup below.
+function toPascalCase(name: string): string {
+  return name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('');
+}
+
+function resolveCategoryIcon(name?: string | null): LucideIcon | null {
+  if (!name) return null;
+  const icons = LucideIcons as Record<string, unknown>;
+  for (const key of [name, toPascalCase(name)]) {
+    const icon = icons[key];
+    if (icon && (typeof icon === 'function' || typeof icon === 'object')) {
+      return icon as LucideIcon;
+    }
+  }
+  return null;
+}
 
 const ConversationStarters = () => {
   const { conversation } = useChatContext();
@@ -128,8 +143,8 @@ const ConversationStarters = () => {
             {conversationStarterCategories.map((category) => {
               const isExpanded = expandedCategories.has(category.label);
               const Icon =
-                categoryIcons[category.icon?.toLowerCase() ?? ''] ??
-                categoryIcons[category.label.split(' ')[0]?.toLowerCase() ?? ''] ??
+                resolveCategoryIcon(category.icon) ??
+                resolveCategoryIcon(category.label.split(' ')[0]) ??
                 Search;
 
               return (
