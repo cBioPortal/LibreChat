@@ -20,10 +20,10 @@ import {
   Info,
   LineChart,
   Lightbulb,
-  Map,
+  Map as MapIcon,
   MapPin,
   Microscope,
-  Navigation,
+  Navigation as NavigationIcon,
   PieChart,
   Search,
   Server,
@@ -50,7 +50,8 @@ import { useSubmitMessage } from '~/hooks';
 // Curated set of icons available to conversation-starter categories.
 // Named imports keep lucide-react tree-shaken; an earlier `import *`
 // pulled the whole library into the http-client chunk and caused a
-// circular-init TDZ crash in production.
+// circular-init TDZ crash in production. `Map`/`Navigation` are aliased
+// so they don't shadow JS globals at module scope.
 const categoryIcons: Record<string, LucideIcon> = {
   Activity,
   Atom,
@@ -71,10 +72,10 @@ const categoryIcons: Record<string, LucideIcon> = {
   Info,
   LineChart,
   Lightbulb,
-  Map,
+  Map: MapIcon,
   MapPin,
   Microscope,
-  Navigation,
+  Navigation: NavigationIcon,
   PieChart,
   Search,
   Server,
