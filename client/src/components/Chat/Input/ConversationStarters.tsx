@@ -1,7 +1,40 @@
 import { useMemo, useCallback, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import {
+  Activity,
+  Atom,
+  BarChart3,
+  Beaker,
+  Book,
+  BookOpen,
+  Brain,
+  ChevronDown,
+  Compass,
+  Database,
+  Dna,
+  FileText,
+  FlaskConical,
+  Folder,
+  Heart,
+  HeartPulse,
+  HelpCircle,
+  Info,
+  LineChart,
+  Lightbulb,
+  Map,
+  MapPin,
+  Microscope,
+  Navigation,
+  PieChart,
+  Search,
+  Server,
+  Sparkles,
+  Stethoscope,
+  Target,
+  Telescope,
+  TestTube,
+  Zap,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 import { EModelEndpoint, Constants } from 'librechat-data-provider';
 import type { TModelSpec } from 'librechat-data-provider';
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
@@ -14,9 +47,45 @@ import { getIconEndpoint, getEntity } from '~/utils';
 import { cn } from '~/utils/';
 import { useSubmitMessage } from '~/hooks';
 
-// Convert kebab/snake/space-separated input to PascalCase to match Lucide
-// export names (e.g. "book-open" → "BookOpen"). Already-PascalCase names
-// also fall through to the as-is lookup below.
+// Curated set of icons available to conversation-starter categories.
+// Named imports keep lucide-react tree-shaken; an earlier `import *`
+// pulled the whole library into the http-client chunk and caused a
+// circular-init TDZ crash in production.
+const categoryIcons: Record<string, LucideIcon> = {
+  Activity,
+  Atom,
+  BarChart3,
+  Beaker,
+  Book,
+  BookOpen,
+  Brain,
+  Compass,
+  Database,
+  Dna,
+  FileText,
+  FlaskConical,
+  Folder,
+  Heart,
+  HeartPulse,
+  HelpCircle,
+  Info,
+  LineChart,
+  Lightbulb,
+  Map,
+  MapPin,
+  Microscope,
+  Navigation,
+  PieChart,
+  Search,
+  Server,
+  Sparkles,
+  Stethoscope,
+  Target,
+  Telescope,
+  TestTube,
+  Zap,
+};
+
 function toPascalCase(name: string): string {
   return name
     .split(/[-_\s]+/)
@@ -27,12 +96,9 @@ function toPascalCase(name: string): string {
 
 function resolveCategoryIcon(name?: string | null): LucideIcon | null {
   if (!name) return null;
-  const icons = LucideIcons as Record<string, unknown>;
   for (const key of [name, toPascalCase(name)]) {
-    const icon = icons[key];
-    if (icon && (typeof icon === 'function' || typeof icon === 'object')) {
-      return icon as LucideIcon;
-    }
+    const icon = categoryIcons[key];
+    if (icon) return icon;
   }
   return null;
 }
