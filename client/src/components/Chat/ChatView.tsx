@@ -108,7 +108,7 @@ function ChatView({ index = 0, project }: { index?: number; project?: TChatProje
                   className={cn(
                     'flex flex-col',
                     isLandingPage
-                      ? 'flex-1 items-center justify-end sm:justify-center'
+                      ? 'min-h-0 flex-1 items-center justify-start overflow-y-auto overscroll-contain pb-4 pt-4 sm:pt-6'
                       : 'h-full overflow-y-auto',
                   )}
                 >
