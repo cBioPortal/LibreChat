@@ -209,6 +209,9 @@ jobs:
             UNUSED=$(depcheck --json | jq -r '.dependencies | join("\n")' || echo "")
             # Exclude dependencies used in scripts, code, and workspace packages
             UNUSED=$(comm -23 <(echo "$UNUSED" | sort) <(cat root_used_deps.txt root_used_code.txt root_workspace_deps.txt | sort) || echo "")
+            # dd-trace is loaded via NODE_OPTIONS=--require dd-trace/init at
+            # runtime — depcheck can't see that.
+            UNUSED=$(echo "$UNUSED" | grep -v "^dd-trace$" || echo "")
             echo "ROOT_UNUSED<<EOF" >> $GITHUB_ENV
             echo "$UNUSED" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
