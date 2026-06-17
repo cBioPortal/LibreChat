@@ -1,7 +1,40 @@
-import { useMemo, useCallback, useState, lazy, Suspense, type LazyExoticComponent } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { useMemo, useCallback, useState } from 'react';
+import {
+  Activity,
+  Atom,
+  BarChart3,
+  Beaker,
+  Book,
+  BookOpen,
+  Brain,
+  ChevronDown,
+  Compass,
+  Database,
+  Dna,
+  FileText,
+  FlaskConical,
+  Folder,
+  Heart,
+  HeartPulse,
+  HelpCircle,
+  Info,
+  LineChart,
+  Lightbulb,
+  Map as MapIcon,
+  MapPin,
+  Microscope,
+  Navigation as NavigationIcon,
+  PieChart,
+  Search,
+  Server,
+  Sparkles,
+  Stethoscope,
+  Target,
+  Telescope,
+  TestTube,
+  Zap,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { EModelEndpoint, Constants } from 'librechat-data-provider';
 import type { TModelSpec } from 'librechat-data-provider';
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
@@ -14,28 +47,61 @@ import { getIconEndpoint, getEntity } from '~/utils';
 import { cn } from '~/utils/';
 import { useSubmitMessage } from '~/hooks';
 
-// Normalize PascalCase / camelCase / snake_case / space-separated input
-// to the kebab-case keys lucide-react's dynamicIconImports record uses
-// (e.g. "BookOpen" / "book_open" / "Book Open" → "book-open").
-function toKebabCase(name: string): string {
+// Curated set of icons available to conversation-starter categories.
+// Named imports keep lucide-react tree-shaken; an earlier `import *`
+// pulled the whole library into the http-client chunk and caused a
+// circular-init TDZ crash in production. `Map`/`Navigation` are aliased
+// so they don't shadow JS globals at module scope.
+const categoryIcons: Record<string, LucideIcon> = {
+  Activity,
+  Atom,
+  BarChart3,
+  Beaker,
+  Book,
+  BookOpen,
+  Brain,
+  Compass,
+  Database,
+  Dna,
+  FileText,
+  FlaskConical,
+  Folder,
+  Heart,
+  HeartPulse,
+  HelpCircle,
+  Info,
+  LineChart,
+  Lightbulb,
+  Map: MapIcon,
+  MapPin,
+  Microscope,
+  Navigation: NavigationIcon,
+  PieChart,
+  Search,
+  Server,
+  Sparkles,
+  Stethoscope,
+  Target,
+  Telescope,
+  TestTube,
+  Zap,
+};
+
+function toPascalCase(name: string): string {
   return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[_\s]+/g, '-')
-    .toLowerCase();
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('');
 }
 
-const iconCache = new Map<string, LazyExoticComponent<LucideIcon>>();
-
-function resolveCategoryIcon(name?: string | null): LazyExoticComponent<LucideIcon> | null {
+function resolveCategoryIcon(name?: string | null): LucideIcon | null {
   if (!name) return null;
-  const key = toKebabCase(name);
-  const cached = iconCache.get(key);
-  if (cached) return cached;
-  const importFn = dynamicIconImports[key as keyof typeof dynamicIconImports];
-  if (!importFn) return null;
-  const Icon = lazy(importFn) as LazyExoticComponent<LucideIcon>;
-  iconCache.set(key, Icon);
-  return Icon;
+  for (const key of [name, toPascalCase(name)]) {
+    const icon = categoryIcons[key];
+    if (icon) return icon;
+  }
+  return null;
 }
 
 const ConversationStarters = () => {
@@ -147,7 +213,6 @@ const ConversationStarters = () => {
                 resolveCategoryIcon(category.icon) ??
                 resolveCategoryIcon(category.label.split(' ')[0]) ??
                 Search;
-              const iconClasses = 'h-4 w-4 text-text-secondary';
 
               return (
                 <section
@@ -165,9 +230,7 @@ const ConversationStarters = () => {
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border-light bg-surface-secondary">
-                        <Suspense fallback={<Search className={iconClasses} aria-hidden="true" />}>
-                          <Icon className={iconClasses} aria-hidden="true" />
-                        </Suspense>
+                        <Icon className="h-4 w-4 text-text-secondary" aria-hidden="true" />
                       </span>
                       <span className="flex min-w-0 flex-col gap-1">
                         <span className="text-sm font-semibold text-text-primary">
