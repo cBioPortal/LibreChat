@@ -1,12 +1,13 @@
 import { logger } from '@librechat/data-schemas';
 import {
   EModelEndpoint,
+  extractEnvVariable,
   removeNullishValues,
   normalizeEndpointName,
 } from 'librechat-data-provider';
 import type { TCustomConfig, TEndpoint, TTransactionsConfig } from 'librechat-data-provider';
 import type { AppConfig } from '@librechat/data-schemas';
-import { isEnabled } from '~/utils';
+import { isEnabled, isUserProvided } from '~/utils';
 
 /**
  * Retrieves the balance configuration object
@@ -65,6 +66,38 @@ export const getCustomEndpointConfig = ({
   const customEndpoints = appConfig.endpoints?.[EModelEndpoint.custom] ?? [];
   return customEndpoints.find(
     (endpointConfig) => normalizeEndpointName(endpointConfig.name) === normalizeEndpointName(endpoint),
+  );
+};
+
+export const endpointUsesUserProvidedKey = ({
+  endpoint,
+  endpointType,
+  appConfig,
+}: {
+  endpoint?: string | EModelEndpoint;
+  endpointType?: string | EModelEndpoint;
+  appConfig?: AppConfig;
+}): boolean => {
+  const targetEndpoint = endpoint ?? '';
+  const targetEndpointType = endpointType ?? targetEndpoint;
+
+  if (targetEndpointType === EModelEndpoint.custom && targetEndpoint) {
+    if (!appConfig) {
+      return false;
+    }
+    const endpointConfig = getCustomEndpointConfig({ endpoint: targetEndpoint, appConfig });
+    return isUserProvided(extractEnvVariable(endpointConfig?.apiKey ?? ''));
+  }
+
+  const standardCredentials: Partial<Record<EModelEndpoint, string | undefined>> = {
+    [EModelEndpoint.openAI]: process.env.OPENAI_API_KEY,
+    [EModelEndpoint.azureOpenAI]: process.env.AZURE_API_KEY,
+    [EModelEndpoint.anthropic]: process.env.ANTHROPIC_API_KEY,
+    [EModelEndpoint.google]: process.env.GOOGLE_KEY,
+  };
+
+  return isUserProvided(
+    extractEnvVariable(standardCredentials[targetEndpoint as EModelEndpoint] ?? ''),
   );
 };
 

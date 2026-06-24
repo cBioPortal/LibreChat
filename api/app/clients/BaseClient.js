@@ -4,6 +4,7 @@ const { logger } = require('@librechat/data-schemas');
 const {
   countTokens,
   getBalanceConfig,
+  endpointUsesUserProvidedKey,
   extractFileContext,
   encodeAndFormatAudios,
   encodeAndFormatVideos,
@@ -698,7 +699,14 @@ class BaseClient {
       }
     }
 
-    const balanceConfig = getBalanceConfig(appConfig);
+    const usesUserProvidedKey = endpointUsesUserProvidedKey({
+      appConfig,
+      endpoint: this.options.endpoint,
+      endpointType: this.options.endpointType,
+    });
+    const balanceConfig = usesUserProvidedKey
+      ? { ...(getBalanceConfig(appConfig) ?? {}), enabled: false }
+      : getBalanceConfig(appConfig);
     if (
       balanceConfig?.enabled &&
       supportsBalanceCheck[this.options.endpointType ?? this.options.endpoint]

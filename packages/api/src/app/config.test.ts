@@ -1,4 +1,9 @@
-import { getTransactionsConfig, getBalanceConfig, getCustomEndpointConfig } from './config';
+import {
+  getTransactionsConfig,
+  getBalanceConfig,
+  getCustomEndpointConfig,
+  endpointUsesUserProvidedKey,
+} from './config';
 import { logger } from '@librechat/data-schemas';
 import { FileSources, EModelEndpoint } from 'librechat-data-provider';
 import type { TCustomConfig, TEndpoint } from 'librechat-data-provider';
@@ -40,6 +45,7 @@ jest.mock('@librechat/data-schemas', () => ({
 
 jest.mock('~/utils', () => ({
   isEnabled: jest.fn((value) => value === 'true'),
+  isUserProvided: jest.fn((value) => value === 'user_provided'),
 }));
 
 describe('getTransactionsConfig', () => {
@@ -352,5 +358,59 @@ describe('getCustomEndpointConfig', () => {
       const result = getCustomEndpointConfig({ endpoint: 'customai', appConfig });
       expect(result).toBeUndefined();
     });
+  });
+});
+
+describe('endpointUsesUserProvidedKey', () => {
+  beforeEach(() => {
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it('returns true for a custom endpoint configured with a user-provided API key', () => {
+    const appConfig = createTestAppConfig({
+      endpoints: {
+        [EModelEndpoint.custom]: [
+          {
+            name: 'openai-byok',
+            apiKey: 'user_provided',
+          } as TEndpoint,
+        ],
+      },
+    });
+
+    expect(
+      endpointUsesUserProvidedKey({
+        endpoint: 'openai-byok',
+        endpointType: EModelEndpoint.custom,
+        appConfig,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for a custom endpoint configured with a system API key', () => {
+    const appConfig = createTestAppConfig({
+      endpoints: {
+        [EModelEndpoint.custom]: [
+          {
+            name: 'openai-byok',
+            apiKey: 'system-key',
+          } as TEndpoint,
+        ],
+      },
+    });
+
+    expect(
+      endpointUsesUserProvidedKey({
+        endpoint: 'openai-byok',
+        endpointType: EModelEndpoint.custom,
+        appConfig,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns true for a standard endpoint configured through a user-provided env var', () => {
+    process.env.OPENAI_API_KEY = 'user_provided';
+
+    expect(endpointUsesUserProvidedKey({ endpoint: EModelEndpoint.openAI })).toBe(true);
   });
 });

@@ -5,6 +5,7 @@ import ImportConversations from './ImportConversations';
 import { AgentApiKeys } from './AgentApiKeys';
 import { DeleteCache } from './DeleteCache';
 import { RevokeKeys } from './RevokeKeys';
+import { ProviderKeys } from './ProviderKeys';
 import { ClearChats } from './ClearChats';
 import SharedLinks from './SharedLinks';
 import { useHasAccess } from '~/hooks';
@@ -31,6 +32,9 @@ function Data() {
           <AgentApiKeys />
         </div>
       )}
+      <div className="pb-3">
+        <ProviderKeys />
+      </div>
       <div className="pb-3">
         <RevokeKeys />
       </div>
