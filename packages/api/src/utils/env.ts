@@ -103,6 +103,16 @@ export function createSafeUser(
     }
   }
 
+  // Fallback: populate id from _id when the Mongoose id virtual isn't captured via the 'in'
+  // operator (e.g. when req.user is a plain object deserialized from the passport session and
+  // the virtual getter is no longer on the prototype chain).
+  if (!safeUser.id) {
+    const rawId = (user as Record<string, unknown>)._id;
+    if (rawId != null) {
+      safeUser.id = String(rawId);
+    }
+  }
+
   if ('federatedTokens' in user) {
     safeUser.federatedTokens = user.federatedTokens;
   }
