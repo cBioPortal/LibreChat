@@ -1677,6 +1677,52 @@ describe('createSafeUser', () => {
     }
   });
 
+  it('resolves {{LIBRECHAT_USER_ID}} from _id WITHOUT createSafeUser (real MCP tool-call path)', () => {
+    // Regression guard for the runtime path #29 missed: MCPManager.callTool ->
+    // processMCPEnv passes `config.configurable.user` directly and never calls
+    // createSafeUser (#29 only fixed the helper). A passport-session-deserialized
+    // user is a plain object with `_id` but no `id` virtual, so processMCPEnv
+    // itself must fall back to `_id`. Without this, x-user-id shipped the literal
+    // "{{LIBRECHAT_USER_ID}}" placeholder (observed in production Datadog spans).
+    const objectId = new Types.ObjectId();
+    const user = { _id: objectId } as unknown as IUser;
+
+    const options: MCPOptions = {
+      type: 'streamable-http',
+      url: 'http://mcp-server/mcp',
+      headers: {
+        'x-user-id': '{{LIBRECHAT_USER_ID}}',
+      },
+    };
+
+    const result = processMCPEnv({ user, options });
+    if (isStreamableHTTPOptions(result)) {
+      expect(result.headers?.['x-user-id']).toBe(String(objectId));
+    } else {
+      throw new Error('Expected streamable-http options');
+    }
+  });
+
+  it('prefers the id virtual over _id when both are present', () => {
+    const objectId = new Types.ObjectId();
+    const user = { id: 'explicit-id', _id: objectId } as unknown as IUser;
+
+    const options: MCPOptions = {
+      type: 'streamable-http',
+      url: 'http://mcp-server/mcp',
+      headers: {
+        'x-user-id': '{{LIBRECHAT_USER_ID}}',
+      },
+    };
+
+    const result = processMCPEnv({ user, options });
+    if (isStreamableHTTPOptions(result)) {
+      expect(result.headers?.['x-user-id']).toBe('explicit-id');
+    } else {
+      throw new Error('Expected streamable-http options');
+    }
+  });
+
   it('returns empty object for null user', () => {
     expect(createSafeUser(null)).toEqual({});
   });

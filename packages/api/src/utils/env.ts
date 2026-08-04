@@ -137,6 +137,16 @@ function processUserPlaceholders(
     return value;
   }
 
+  // The Mongoose `id` virtual is frequently absent on a plain user object
+  // deserialized from the passport session (only `_id` survives). Fall back to
+  // `_id` so `{{LIBRECHAT_USER_ID}}` still resolves on requests whose user object
+  // bypasses createSafeUser — notably MCP tool calls, where MCPManager.callTool
+  // passes `config.configurable.user` straight to processMCPEnv.
+  const resolvedUser =
+    (user.id === undefined || user.id === '') && (user as Record<string, unknown>)._id != null
+      ? { ...user, id: String((user as Record<string, unknown>)._id) }
+      : user;
+
   for (const field of ALLOWED_USER_FIELDS) {
     const placeholder = `{{LIBRECHAT_USER_${field.toUpperCase()}}}`;
 
@@ -144,10 +154,10 @@ function processUserPlaceholders(
       continue;
     }
 
-    const fieldValue = user[field as keyof IUser];
+    const fieldValue = resolvedUser[field as keyof IUser];
 
     // Skip replacement if field doesn't exist in user object
-    if (!(field in user)) {
+    if (!(field in resolvedUser)) {
       continue;
     }
 
