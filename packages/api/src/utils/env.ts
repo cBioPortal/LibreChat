@@ -84,37 +84,40 @@ export function encodeHeaderValue(value: string): string {
  */
 export function createSafeUser(
   user: IUser | null | undefined,
+  fallbackId?: string | null,
 ): Partial<SafeUser> & { federatedTokens?: IUser['federatedTokens'] } {
-  if (!user) {
-    return {};
-  }
-
   const safeUser: Partial<SafeUser> & { federatedTokens?: IUser['federatedTokens'] } = {};
-  for (const field of ALLOWED_USER_FIELDS) {
-    if (field in user) {
-      /**
-       * Indexed write through a union-typed key would otherwise fail strict
-       * checking — TS computes the LHS type as the *intersection* of all
-       * field write types (which collapses to `undefined` when fields have
-       * mixed types). `Object.assign` widens the assignment so each field
-       * preserves its concrete type at runtime.
-       */
-      Object.assign(safeUser, { [field]: user[field] });
+
+  if (user) {
+    for (const field of ALLOWED_USER_FIELDS) {
+      if (field in user) {
+        /**
+         * Indexed write through a union-typed key would otherwise fail strict
+         * checking — TS computes the LHS type as the *intersection* of all
+         * field write types (which collapses to `undefined` when fields have
+         * mixed types). `Object.assign` widens the assignment so each field
+         * preserves its concrete type at runtime.
+         */
+        Object.assign(safeUser, { [field]: user[field] });
+      }
+    }
+
+    // Fallback: populate id from _id when the Mongoose id virtual isn't captured via the 'in'
+    // operator (e.g. when req.user is a plain object deserialized from the passport session and
+    // the virtual getter is no longer on the prototype chain).
+    if (!safeUser.id) {
+      const rawId = (user as unknown as { _id?: unknown })._id;
+      if (rawId != null) {
+        safeUser.id = String(rawId);
+      }
     }
   }
 
-  // Fallback: populate id from _id when the Mongoose id virtual isn't captured via the 'in'
-  // operator (e.g. when req.user is a plain object deserialized from the passport session and
-  // the virtual getter is no longer on the prototype chain).
-  if (!safeUser.id) {
-    const rawId = (user as Record<string, unknown>)._id;
-    if (rawId != null) {
-      safeUser.id = String(rawId);
-    }
-  }
-
-  if ('federatedTokens' in user) {
-    safeUser.federatedTokens = user.federatedTokens;
+  // Last-resort id fallback: an explicitly-provided id (e.g. the agent client's `this.user`),
+  // for flows where req.user carries neither the `id` virtual nor `_id`. Without it,
+  // `{{LIBRECHAT_USER_ID}}` ships unresolved to downstream MCP servers.
+  if (!safeUser.id && fallbackId != null) {
+    safeUser.id = String(fallbackId);
   }
 
   return safeUser;

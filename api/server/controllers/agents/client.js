@@ -768,7 +768,7 @@ class AgentClient extends BaseClient {
         getFormattedMemories: db.getFormattedMemories,
       },
       res: this.options.res,
-      user: createSafeUser(this.options.req.user),
+      user: createSafeUser(this.options.req.user, this.user),
     });
 
     this.processMemory = processMemory;
@@ -1170,7 +1170,7 @@ class AgentClient extends BaseClient {
             conversationId: this.conversationId,
             parentMessageId: this.parentMessageId,
           },
-          user: createSafeUser(this.options.req.user),
+          user: createSafeUser(this.options.req.user, this.user),
         },
         recursionLimit: resolveRecursionLimit(agentsEConfig, this.options.agent),
         signal: abortController.signal,
@@ -1388,7 +1388,7 @@ class AgentClient extends BaseClient {
           signal: abortController.signal,
           customHandlers: this.options.eventHandlers,
           requestBody: config.configurable.requestBody,
-          user: createSafeUser(this.options.req?.user),
+          user: createSafeUser(this.options.req?.user, this.user),
           tenantId: this.options.req?.user?.tenantId,
           summarizationConfig: appConfig?.summarization,
           appConfig,
@@ -1756,7 +1756,7 @@ class AgentClient extends BaseClient {
      */
     resolveConfigHeaders({
       llmConfig: clientOptions,
-      user: createSafeUser(this.options.req?.user),
+      user: createSafeUser(this.options.req?.user, this.user),
       body: {
         messageId: this.responseMessageId,
         conversationId: this.conversationId,

@@ -794,7 +794,7 @@ const createResponse = async (req, res) => {
         configurable: {
           thread_id: conversationId,
           user_id: userId,
-          user: createSafeUser(req.user),
+          user: createSafeUser(req.user, userId),
           requestBody: {
             messageId: responseId,
             conversationId,
@@ -971,7 +971,7 @@ const createResponse = async (req, res) => {
         configurable: {
           thread_id: conversationId,
           user_id: userId,
-          user: createSafeUser(req.user),
+          user: createSafeUser(req.user, userId),
           requestBody: {
             messageId: responseId,
             conversationId,
