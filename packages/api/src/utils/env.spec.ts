@@ -1744,4 +1744,44 @@ describe('createSafeUser', () => {
     const safe = createSafeUser(user);
     expect(safe.id).toBe('explicit-id');
   });
+
+  it('uses fallbackId for id when req.user has neither id nor _id (agent client this.user path)', () => {
+    // The agent MCP flow builds config.configurable.user = createSafeUser(req.user, this.user).
+    // Here req.user carries no id/_id (so #29/#30 fallbacks find nothing), but the client's
+    // this.user holds the ObjectId — the header must resolve from that.
+    const user = { email: 'user@example.com', provider: 'local' } as unknown as IUser;
+    const safe = createSafeUser(user, '507f1f77bcf86cd799439011');
+    expect(safe.id).toBe('507f1f77bcf86cd799439011');
+    expect(safe.email).toBe('user@example.com');
+  });
+
+  it('prefers _id over fallbackId', () => {
+    const objectId = new Types.ObjectId();
+    const user = { _id: objectId } as unknown as IUser;
+    expect(createSafeUser(user, 'fallback-id').id).toBe(String(objectId));
+  });
+
+  it('populates id from fallbackId even when user is null', () => {
+    expect(createSafeUser(null, '507f1f77bcf86cd799439011')).toEqual({
+      id: '507f1f77bcf86cd799439011',
+    });
+  });
+
+  it('end-to-end: {{LIBRECHAT_USER_ID}} resolves via fallbackId when req.user has no id/_id', () => {
+    const user = { email: 'user@example.com' } as unknown as IUser;
+    const safe = createSafeUser(user, '507f1f77bcf86cd799439011');
+    const options: MCPOptions = {
+      type: 'streamable-http',
+      url: 'http://mcp-server/mcp',
+      headers: {
+        'x-user-id': '{{LIBRECHAT_USER_ID}}',
+      },
+    };
+    const result = processMCPEnv({ user: safe, options });
+    if (isStreamableHTTPOptions(result)) {
+      expect(result.headers?.['x-user-id']).toBe('507f1f77bcf86cd799439011');
+    } else {
+      throw new Error('Expected streamable-http options');
+    }
+  });
 });

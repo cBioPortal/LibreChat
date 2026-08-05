@@ -530,7 +530,7 @@ class AgentClient extends BaseClient {
         getFormattedMemories: db.getFormattedMemories,
       },
       res: this.options.res,
-      user: createSafeUser(this.options.req.user),
+      user: createSafeUser(this.options.req.user, this.user),
     });
 
     this.processMemory = processMemory;
@@ -799,7 +799,7 @@ class AgentClient extends BaseClient {
             conversationId: this.conversationId,
             parentMessageId: this.parentMessageId,
           },
-          user: createSafeUser(this.options.req.user),
+          user: createSafeUser(this.options.req.user, this.user),
         },
         recursionLimit: agentsEConfig?.recursionLimit ?? 50,
         signal: abortController.signal,
@@ -874,7 +874,7 @@ class AgentClient extends BaseClient {
           signal: abortController.signal,
           customHandlers: this.options.eventHandlers,
           requestBody: config.configurable.requestBody,
-          user: createSafeUser(this.options.req?.user),
+          user: createSafeUser(this.options.req?.user, this.user),
           tokenCounter: createTokenCounter(this.getEncoding()),
         });
 
@@ -1101,7 +1101,7 @@ class AgentClient extends BaseClient {
     if (clientOptions?.configuration?.defaultHeaders != null) {
       clientOptions.configuration.defaultHeaders = resolveHeaders({
         headers: clientOptions.configuration.defaultHeaders,
-        user: createSafeUser(this.options.req?.user),
+        user: createSafeUser(this.options.req?.user, this.user),
         body: {
           messageId: this.responseMessageId,
           conversationId: this.conversationId,
