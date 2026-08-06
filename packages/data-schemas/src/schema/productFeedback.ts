@@ -1,7 +1,7 @@
 import { Schema } from 'mongoose';
 import type { IProductFeedback } from '~/types/productFeedback';
 
-const productFeedbackSchema = new Schema<IProductFeedback>(
+const productFeedbackSchema: Schema<IProductFeedback> = new Schema<IProductFeedback>(
   {
     request_id: { type: String, required: true, unique: true, index: true },
     user: { type: String, required: true, index: true },

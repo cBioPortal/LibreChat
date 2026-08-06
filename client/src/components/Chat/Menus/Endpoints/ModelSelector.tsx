@@ -157,12 +157,6 @@ function ModelSelectorContent() {
     />
   );
 
-  const trigger = selectedSpecTooltip ? (
-    <TooltipAnchor description={selectedSpecTooltip} side="bottom" render={triggerButton} />
-  ) : (
-    triggerButton
-  );
-
   return (
     <div className="relative flex w-full max-w-md flex-col items-center gap-2">
       <Menu
