@@ -1345,6 +1345,7 @@ describe('Agent Controllers - Mass Assignment Protection', () => {
           'author',
           'avatar',
           'category',
+          'conversation_starters',
           'description',
           'id',
           'is_promoted',
