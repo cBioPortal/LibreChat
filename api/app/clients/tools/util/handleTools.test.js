@@ -451,4 +451,52 @@ describe('Tool Handlers', () => {
       );
     });
   });
+
+  describe('loadTools MCP user id propagation', () => {
+    // Regression guard: MCP tool-call requests shipped the literal "{{LIBRECHAT_USER_ID}}"
+    // placeholder in x-user-id headers because `loadTools` built the MCP `user` object from
+    // `options.req?.user` alone. When `req.user` is a plain object deserialized from the
+    // passport session (no `id` virtual, no `_id`), that object resolves to no usable id even
+    // though `loadTools` is already given the caller's resolved id via its own `user` param
+    // (see ToolService.js: `loadTools({ user: req.user.id, ... })`). Assert that id makes it
+    // into the object handed to `createMCPTools`.
+    const mcpServerName = 'test-mcp-server';
+    const mcpAllToolName = `${Constants.mcp_all}${Constants.mcp_delimiter}${mcpServerName}`;
+
+    beforeEach(() => {
+      mockGetServerConfig.mockResolvedValue({ startup: true });
+      mockCreateMCPTools.mockResolvedValue([]);
+    });
+
+    it('falls back to the loadTools `user` param when req.user has neither id nor _id', async () => {
+      const userId = fakeUser._id.toString();
+      const sessionUser = { email: 'fakeuser@example.com', provider: 'local' };
+
+      await loadTools({
+        user: userId,
+        tools: [mcpAllToolName],
+        options: { req: { user: sessionUser } },
+      });
+
+      expect(mockCreateMCPTools).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: expect.objectContaining({ id: userId }),
+        }),
+      );
+    });
+
+    it('prefers a resolvable req.user id over the loadTools `user` param', async () => {
+      await loadTools({
+        user: fakeUser._id.toString(),
+        tools: [mcpAllToolName],
+        options: { req: { user: { id: 'explicit-req-user-id' } } },
+      });
+
+      expect(mockCreateMCPTools).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: expect.objectContaining({ id: 'explicit-req-user-id' }),
+        }),
+      );
+    });
+  });
 });

@@ -586,7 +586,9 @@ describe('Environment Variable Extraction (MCP)', () => {
       const result1 = processMCPEnv({ options: obj1, user: userWithId });
       expect('headers' in result1 && result1.headers?.['User-Id']).toBe('user-123');
 
-      // Test with '_id' property only (should not work since we only check 'id')
+      // Test with '_id' property only. Our fork accepts _id as a fallback for id
+      // (PRs #29/#30/#31/#32 threaded this through createSafeUser and loadTools)
+      // because passport-deserialized session user objects only carry _id.
       const userWithUnderscore = createTestUser({
         id: undefined, // Remove default id to test _id
         _id: 'user-456',
@@ -601,8 +603,7 @@ describe('Environment Variable Extraction (MCP)', () => {
       };
 
       const result2 = processMCPEnv({ options: obj2, user: userWithUnderscore });
-      // Since we don't check _id, the placeholder should remain unchanged
-      expect('headers' in result2 && result2.headers?.['User-Id']).toBe('{{LIBRECHAT_USER_ID}}');
+      expect('headers' in result2 && result2.headers?.['User-Id']).toBe('user-456');
 
       // Test with both properties (id takes precedence)
       const userWithBoth = createTestUser({
