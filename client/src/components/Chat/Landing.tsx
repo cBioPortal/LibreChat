@@ -98,7 +98,10 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       entity?.description ||
       currentSpec?.description ||
       brandedSpecDescription) ?? '';
-  const descriptionIsHTML = description.trim().startsWith('<');
+  // Detect HTML anywhere in the description, not only at the start. Greetings
+  // like "Ask X to explore Y. <a …>Learn more</a>" begin with plain text but
+  // still contain a link that must be rendered, not shown as escaped source.
+  const descriptionIsHTML = /<[a-z][\s\S]*>/i.test(description);
 
   const sanitizeDescription = useMemo(
     () =>

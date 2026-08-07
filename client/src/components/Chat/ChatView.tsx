@@ -120,10 +120,9 @@ function ChatView({ index = 0, project }: { index?: number; project?: TChatProje
                     )}
                   >
                     {isProjectLandingPage && project && <ProjectLandingChip project={project} />}
-                    {isLandingPage && <ConversationStarters />}
                     <ChatForm index={index} placeholder={chatFormPlaceholder} />
                     {isLandingPage && <LimitBadge />}
-                    {!isLandingPage && <Footer />}
+                    {isLandingPage ? <ConversationStarters /> : <Footer />}
                   </div>
                 </div>
                 {isLandingPage && <Footer />}
