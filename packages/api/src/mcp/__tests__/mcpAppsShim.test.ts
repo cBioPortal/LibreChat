@@ -53,6 +53,39 @@ describe('synthesizeMCPAppsUiResource', () => {
     expect(response.content).toHaveLength(1);
   });
 
+  it('normalizes parameterized mimeType so @mcp-ui/client\'s strict equality check matches', async () => {
+    const conn = makeConnection('ui://x/widget', {
+      text: HTML,
+      // fastmcp>=3.3.1 emits this for widget resources; @mcp-ui/client does
+      // strict `mimeType === "text/html"` so the ;profile= param would break it.
+      mimeType: 'text/html;profile=mcp-app',
+    });
+    const out = await synthesizeMCPAppsUiResource(
+      { content: [], isError: false },
+      'widget_tool',
+      conn,
+    );
+    expect(out?.content?.[0]).toMatchObject({
+      type: 'resource',
+      resource: { mimeType: 'text/html' },
+    });
+  });
+
+  it('lowercases and trims the base mimeType', async () => {
+    const conn = makeConnection('ui://x/widget', {
+      text: HTML,
+      mimeType: ' TEXT/HTML ; charset=utf-8',
+    });
+    const out = await synthesizeMCPAppsUiResource(
+      { content: [], isError: false },
+      'widget_tool',
+      conn,
+    );
+    expect(out?.content?.[0]).toMatchObject({
+      resource: { mimeType: 'text/html' },
+    });
+  });
+
   it('defaults mimeType to text/html when the resource server omits it', async () => {
     const conn = makeConnection('ui://x/widget', { text: HTML });
     const out = await synthesizeMCPAppsUiResource(

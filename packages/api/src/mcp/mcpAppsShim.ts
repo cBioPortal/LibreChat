@@ -3,6 +3,21 @@ import type { MCPConnection } from './connection';
 import type * as t from './types';
 
 /**
+ * Strips media-type parameters (anything after the first `;`) and lowercases
+ * the base type. `@mcp-ui/client` dispatches its renderer on a strict
+ * `mimeType === "text/html"` (or `"text/uri-list"`) comparison, so a
+ * spec-legal but parameterized value like `text/html;profile=mcp-app` (what
+ * fastmcp>=3.3.1 emits for widget resources) falls through to "unsupported
+ * resource type." Normalizing here keeps the shim self-contained and doesn't
+ * lose information the renderer would use.
+ */
+function normalizeMimeType(raw: string | undefined): string | undefined {
+  if (raw == null) return undefined;
+  const semi = raw.indexOf(';');
+  return (semi === -1 ? raw : raw.slice(0, semi)).trim().toLowerCase() || undefined;
+}
+
+/**
  * Bridge between two flavors of the MCP `io.modelcontextprotocol/ui`
  * ("MCP Apps") extension.
  *
@@ -78,7 +93,7 @@ export async function synthesizeMCPAppsUiResource(
     type: 'resource',
     resource: {
       uri: uiResourceUri,
-      mimeType: widget.mimeType ?? 'text/html',
+      mimeType: normalizeMimeType(widget.mimeType) ?? 'text/html',
       text: widget.text,
     },
   };
