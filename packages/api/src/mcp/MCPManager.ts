@@ -28,6 +28,7 @@ import { MCPConnectionFactory } from './MCPConnectionFactory';
 import { preProcessGraphTokens } from '~/utils/graph';
 import { formatToolContent } from './parsers';
 import { MCPConnection } from './connection';
+import { synthesizeMCPAppsUiResource } from './mcpAppsShim';
 import { processMCPEnv } from '~/utils/env';
 
 function createOboToolCallErrorMessage(
@@ -532,7 +533,12 @@ Please follow these instructions when using tools from the respective MCP server
         this.updateUserLastActivity(userId);
       }
       this.checkIdleConnections();
-      return formatToolContent(result as t.MCPToolCallResponse, provider);
+      const shimmed = await synthesizeMCPAppsUiResource(
+        result as t.MCPToolCallResponse,
+        toolName,
+        connection,
+      );
+      return formatToolContent(shimmed, provider);
     } catch (error) {
       // Log with context and re-throw or handle as needed
       logger.error(`${logPrefix}[${toolName}] Tool call failed`, error);

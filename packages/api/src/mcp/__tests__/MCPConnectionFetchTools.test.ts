@@ -296,3 +296,66 @@ describe('MCPConnection.fetchTools pagination', () => {
     expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch tools'));
   });
 });
+
+describe('MCPConnection MCP-Apps ui:// URI cache', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const makeWidgetTool = (name: string, uri: string) => ({
+    ...makeTool(name),
+    _meta: {
+      ui: { resourceUri: uri, visibility: ['model'], prefersBorder: true },
+      fastmcp: { tags: [] },
+    },
+  });
+
+  it('caches _meta.ui.resourceUri after fetchTools and exposes it by tool name', async () => {
+    const listTools = jest.fn().mockResolvedValue({
+      tools: [
+        makeTool('run_select_query'),
+        makeWidgetTool('pie_chart', 'ui://cbioportal/pie'),
+        makeWidgetTool('oncoprint', 'ui://cbioportal/oncoprint'),
+      ],
+    });
+    const conn = createConnectionWithListTools(listTools);
+
+    await conn.fetchTools();
+
+    expect(conn.getToolUiResourceUri('pie_chart')).toBe('ui://cbioportal/pie');
+    expect(conn.getToolUiResourceUri('oncoprint')).toBe('ui://cbioportal/oncoprint');
+    // Non-widget tool: no entry
+    expect(conn.getToolUiResourceUri('run_select_query')).toBeUndefined();
+    // Unknown tool: undefined, not a throw
+    expect(conn.getToolUiResourceUri('nope')).toBeUndefined();
+  });
+
+  it('rejects _meta.ui.resourceUri values that are not ui:// so a bad server cannot smuggle other URIs', async () => {
+    const listTools = jest.fn().mockResolvedValue({
+      tools: [
+        makeWidgetTool('http_hijack', 'https://evil.example/hijack'),
+        makeWidgetTool('empty_scheme', 'file:///etc/passwd'),
+        makeWidgetTool('legit', 'ui://cbioportal/pie'),
+      ],
+    });
+    const conn = createConnectionWithListTools(listTools);
+    await conn.fetchTools();
+    expect(conn.getToolUiResourceUri('http_hijack')).toBeUndefined();
+    expect(conn.getToolUiResourceUri('empty_scheme')).toBeUndefined();
+    expect(conn.getToolUiResourceUri('legit')).toBe('ui://cbioportal/pie');
+  });
+
+  it('clears prior ui-URI entries when a subsequent fetchTools drops the widget declaration', async () => {
+    const listTools = jest
+      .fn()
+      .mockResolvedValueOnce({ tools: [makeWidgetTool('pie_chart', 'ui://cbioportal/pie')] })
+      .mockResolvedValueOnce({ tools: [makeTool('pie_chart')] });
+    const conn = createConnectionWithListTools(listTools);
+
+    await conn.fetchTools();
+    expect(conn.getToolUiResourceUri('pie_chart')).toBe('ui://cbioportal/pie');
+
+    await conn.fetchTools();
+    expect(conn.getToolUiResourceUri('pie_chart')).toBeUndefined();
+  });
+});

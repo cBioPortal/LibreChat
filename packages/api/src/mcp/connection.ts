@@ -46,6 +46,23 @@ function getApproximateToolBytes(tool: MCPTool): number {
   }
 }
 
+/**
+ * Extracts the MCP-Apps ui:// resource URI a tool declares via its `_meta.ui`
+ * block (the `io.modelcontextprotocol/ui` extension, as emitted by
+ * fastmcp>=3.3.1). Returns undefined when the tool does not declare a widget.
+ * A URI is only accepted if it starts with `ui://` — anything else is ignored
+ * defensively so a malformed server can't smuggle non-widget URIs into the
+ * widget-render path.
+ */
+function extractToolUiResourceUri(tool: MCPTool): string | undefined {
+  const meta = (tool as unknown as { _meta?: { ui?: { resourceUri?: unknown } } })._meta;
+  const uri = meta?.ui?.resourceUri;
+  if (typeof uri === 'string' && uri.startsWith('ui://')) {
+    return uri;
+  }
+  return undefined;
+}
+
 function getToolsListBudgetExceededReason(
   toolCount: number,
   totalBytes: number,
@@ -1140,6 +1157,15 @@ export class MCPConnection extends EventEmitter {
   private lastConnectionCheckAt: number = 0;
   private oauthTokens?: MCPOAuthTokens | null;
   private requestHeaders?: Record<string, string> | null;
+  /**
+   * Cache of tool name → declared MCP-Apps ui:// resource URI, extracted from
+   * `_meta.ui.resourceUri` on tool declarations (fastmcp>=3.3.1 flavor of the
+   * `io.modelcontextprotocol/ui` extension). Populated by `fetchTools()` and
+   * used by MCPManager's callTool shim to bridge servers that declare their
+   * widget via tool `_meta` (rather than emitting a `resource` content part
+   * per tool response).
+   */
+  private toolUiResourceUris: Map<string, string> = new Map();
   private oauthRequired = false;
   private oauthRecovery = false;
   private readonly useSSRFProtection: boolean;
@@ -2240,6 +2266,8 @@ export class MCPConnection extends EventEmitter {
     const seenCursors = new Set<string>();
     let cursor: string | undefined;
     let totalBytes = 0;
+    /** Reset before repopulating below; a listTools that drops a tool must also drop its ui-URI. */
+    this.toolUiResourceUris.clear();
 
     for (let page = 1; page <= maxPages; page++) {
       const exhaustedBudget = getToolsListBudgetExceededReason(
@@ -2279,6 +2307,10 @@ export class MCPConnection extends EventEmitter {
 
         allTools.push(tool);
         totalBytes += toolBytes;
+        const uiUri = extractToolUiResourceUri(tool);
+        if (uiUri != null) {
+          this.toolUiResourceUris.set(tool.name, uiUri);
+        }
       }
 
       const { nextCursor } = result;
@@ -2332,6 +2364,49 @@ export class MCPConnection extends EventEmitter {
       });
     } catch (error) {
       this.emitError(error, 'Failed to fetch tools');
+      return null;
+    }
+  }
+
+  /**
+   * Returns the declared MCP-Apps ui:// resource URI for a tool, or undefined
+   * when the tool did not advertise one on its last-known declaration.
+   * Populated by {@link fetchTools}.
+   */
+  public getToolUiResourceUri(toolName: string): string | undefined {
+    return this.toolUiResourceUris.get(toolName);
+  }
+
+  /**
+   * Fetches a ui:// (or any) MCP resource and returns its first inline content
+   * body. Used by MCPManager's callTool shim to bridge servers that declare
+   * their widget via tool `_meta` — LibreChat's parser needs the widget HTML
+   * inline on the tool response, so we synthesize a `resource` content part
+   * from what we read here. Returns null on any failure so the caller can
+   * degrade to the normal response.
+   */
+  public async readUiResourceContent(
+    uri: string,
+  ): Promise<{ text?: string; mimeType?: string } | null> {
+    try {
+      const res = await this.client.readResource({ uri });
+      const first = res?.contents?.[0];
+      if (!first || typeof first !== 'object') {
+        return null;
+      }
+      const text = 'text' in first && typeof first.text === 'string' ? first.text : undefined;
+      const mimeType =
+        'mimeType' in first && typeof first.mimeType === 'string' ? first.mimeType : undefined;
+      if (text == null && mimeType == null) {
+        return null;
+      }
+      return { text, mimeType };
+    } catch (error) {
+      logger.debug(
+        `${this.getLogPrefix()} readUiResourceContent(${uri}) failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       return null;
     }
   }
