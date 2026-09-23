@@ -38,6 +38,7 @@ import StreamAudio from './StreamAudio';
 import TokenUsage from './TokenUsage';
 import StopButton from './StopButton';
 import SendButton from './SendButton';
+import ModelOptionPicker from './ModelOptionPicker';
 import EditBadges from './EditBadges';
 import BadgeRow from './BadgeRow';
 import Mention from './Mention';
@@ -392,6 +393,12 @@ const ChatForm = memo(function ChatForm({
               />
               <div className="mx-auto flex" />
               <TokenUsage index={index} conversation={conversation} isSubmitting={isSubmitting} />
+              <ModelOptionPicker
+                index={index}
+                modelSpec={modelSpec}
+                disabled={isSubmitting}
+                newConversation={newConversation}
+              />
               {SpeechToText && (
                 <AudioRecorder
                   methods={methods}

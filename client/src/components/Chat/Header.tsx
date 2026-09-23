@@ -10,7 +10,7 @@ import BookmarkMenu from './Menus/BookmarkMenu';
 import { TemporaryChat } from './TemporaryChat';
 import AddMultiConvo from './AddMultiConvo';
 import { useHasAccess } from '~/hooks';
-import { cn } from '~/utils';
+import { cn, countSelectorEntries } from '~/utils';
 import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
@@ -41,8 +41,10 @@ function Header() {
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const showModelSelector = useMemo(() => {
-    const modelSpecs = startupConfig?.modelSpecs?.list ?? [];
-    return interfaceConfig.modelSelect === true || modelSpecs.length !== 1;
+    return (
+      interfaceConfig.modelSelect === true ||
+      countSelectorEntries(startupConfig?.modelSpecs?.list) !== 1
+    );
   }, [interfaceConfig.modelSelect, startupConfig?.modelSpecs?.list]);
 
   return (

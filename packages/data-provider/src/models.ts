@@ -39,6 +39,10 @@ export type TModelSpec = {
   /** Conversation starter prompts shown on the chat landing while this spec is active. */
   conversation_starters?: string[];
   showSwitchAgent?: boolean;
+  modelOption?: {
+    label: string;
+    description?: string;
+  };
   limitBadge?: {
     messages?: string;
     tokens?: string;
@@ -91,6 +95,17 @@ export const tModelSpecSchema = z.object({
   showOnLanding: z.boolean().optional(),
   conversation_starters: z.array(z.string()).optional(),
   showSwitchAgent: z.boolean().optional(),
+  /**
+   * Offers this spec as a model choice in the chat input's model picker.
+   * Specs sharing `preset.agent_id` that all set `modelOption` are grouped
+   * into one picker and collapse to a single entry in the header selector.
+   */
+  modelOption: z
+    .object({
+      label: z.string(),
+      description: z.string().optional(),
+    })
+    .optional(),
   limitBadge: z
     .object({
       messages: z.string().optional(),
