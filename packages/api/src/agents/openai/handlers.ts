@@ -12,8 +12,10 @@ import type {
   CompletionUsage,
   ToolCall,
 } from './types';
+import type { CompletionUsageTotals } from '~/agents/usage';
 import type { ToolExecuteOptions } from '~/agents/handlers';
 import { createToolExecuteHandler } from '~/agents/handlers';
+import { addToCompletionUsage } from '~/agents/usage';
 
 /**
  * Create a chat completion chunk in OpenAI format
@@ -63,11 +65,7 @@ export interface OpenAIStreamTracker {
   /** Accumulated tool calls by index */
   toolCalls: Map<number, ToolCall>;
   /** Accumulated usage metadata */
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-    reasoningTokens: number;
-  };
+  usage: CompletionUsageTotals;
   /** Mark that text was emitted */
   addText: () => void;
   /** Mark that reasoning was emitted */
@@ -82,11 +80,7 @@ export function createOpenAIStreamTracker(): OpenAIStreamTracker {
     hasText: false,
     hasReasoning: false,
     toolCalls: new Map(),
-    usage: {
-      promptTokens: 0,
-      completionTokens: 0,
-      reasoningTokens: 0,
-    },
+    usage: createCompletionUsageTotals(),
     addText: () => {
       tracker.hasText = true;
     },
@@ -110,11 +104,7 @@ export interface OpenAIContentAggregator {
   /** Accumulated tool calls by index */
   toolCalls: Map<number, ToolCall>;
   /** Accumulated usage metadata */
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-    reasoningTokens: number;
-  };
+  usage: CompletionUsageTotals;
   /** Get accumulated text (joins chunks) */
   getText: () => string;
   /** Get accumulated reasoning (joins chunks) */
@@ -136,11 +126,7 @@ export function createOpenAIContentAggregator(): OpenAIContentAggregator {
     textChunks,
     reasoningChunks,
     toolCalls: new Map(),
-    usage: {
-      promptTokens: 0,
-      completionTokens: 0,
-      reasoningTokens: 0,
-    },
+    usage: createCompletionUsageTotals(),
     getText: () => textChunks.join(''),
     getReasoning: () => reasoningChunks.join(''),
     addText: (text: string) => textChunks.push(text),
@@ -217,7 +203,13 @@ export interface ModelEndData {
     usage_metadata?: {
       input_tokens?: number;
       output_tokens?: number;
+      total_tokens?: number;
       model?: string;
+      provider?: string;
+      input_token_details?: {
+        cache_creation?: number;
+        cache_read?: number;
+      };
       output_token_details?: {
         reasoning?: number;
         reasoning_tokens?: number;
@@ -356,8 +348,7 @@ export class OpenAIModelEndHandler implements EventHandler {
       return;
     }
 
-    this.config.tracker.usage.promptTokens += usage.input_tokens ?? 0;
-    this.config.tracker.usage.completionTokens += usage.output_tokens ?? 0;
+    addToCompletionUsage(this.config.tracker.usage, usage);
     this.config.tracker.usage.reasoningTokens +=
       usage.output_token_details?.reasoning ?? usage.output_token_details?.reasoning_tokens ?? 0;
   }
@@ -433,6 +424,38 @@ export function createOpenAIHandlers(
   return handlers;
 }
 
+export function createCompletionUsageTotals(): CompletionUsageTotals {
+  return {
+    promptTokens: 0,
+    completionTokens: 0,
+    reasoningTokens: 0,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+  };
+}
+
+/**
+ * Builds the OpenAI `usage` object. `prompt_tokens` includes cached input;
+ * `prompt_tokens_details` breaks out cache reads and writes when present.
+ */
+export function buildCompletionUsage(totals: CompletionUsageTotals): CompletionUsage {
+  const usage: CompletionUsage = {
+    prompt_tokens: totals.promptTokens,
+    completion_tokens: totals.completionTokens,
+    total_tokens: totals.promptTokens + totals.completionTokens,
+  };
+  if (totals.cacheReadTokens > 0 || totals.cacheCreationTokens > 0) {
+    usage.prompt_tokens_details = {
+      cached_tokens: totals.cacheReadTokens,
+      cache_creation_tokens: totals.cacheCreationTokens,
+    };
+  }
+  if (totals.reasoningTokens > 0) {
+    usage.completion_tokens_details = { reasoning_tokens: totals.reasoningTokens };
+  }
+  return usage;
+}
+
 /**
  * Send the final chunk with finish_reason and optional usage
  */
@@ -448,21 +471,7 @@ export function sendFinalChunk(
     reason = 'tool_calls';
   }
 
-  // Build usage object with reasoning token details (OpenRouter/OpenAI convention)
-  const usage: CompletionUsage = {
-    prompt_tokens: tracker.usage.promptTokens,
-    completion_tokens: tracker.usage.completionTokens,
-    total_tokens: tracker.usage.promptTokens + tracker.usage.completionTokens,
-  };
-
-  // Add reasoning token breakdown if there are reasoning tokens
-  if (tracker.usage.reasoningTokens > 0) {
-    usage.completion_tokens_details = {
-      reasoning_tokens: tracker.usage.reasoningTokens,
-    };
-  }
-
-  const finalChunk = createChunk(context, {}, reason, usage);
+  const finalChunk = createChunk(context, {}, reason, buildCompletionUsage(tracker.usage));
   writeSSE(res, finalChunk);
 
   // Send [DONE] marker

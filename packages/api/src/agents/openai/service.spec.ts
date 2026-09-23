@@ -1,4 +1,4 @@
-import { createAgentChatCompletion } from './service';
+import { createAgentChatCompletion, validateRequest } from './service';
 import type { ChatCompletionDependencies } from './service';
 
 jest.mock('@librechat/data-schemas', () => ({
@@ -103,5 +103,25 @@ describe('createAgentChatCompletion - MCP permission user propagation', () => {
     // No role present → the runtime MCP check fails closed.
     expect(streamConfig.configurable?.user).toEqual({ id: 'api-user' });
     expect(streamConfig.configurable?.user).not.toHaveProperty('role');
+  });
+});
+
+describe('validateRequest - spec', () => {
+  const base = { model: 'agent_1', messages: [{ role: 'user', content: 'hi' }] };
+
+  it('accepts a request without spec', () => {
+    expect(validateRequest(base)).toMatchObject({ valid: true });
+  });
+
+  it('passes a string spec through on the validated request', () => {
+    const result = validateRequest({ ...base, spec: 'sonnet-spec' });
+    expect(result).toEqual({ valid: true, request: { ...base, spec: 'sonnet-spec' } });
+  });
+
+  it('rejects a non-string spec', () => {
+    expect(validateRequest({ ...base, spec: 7 })).toEqual({
+      valid: false,
+      error: 'spec must be a string',
+    });
   });
 });

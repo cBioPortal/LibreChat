@@ -35,6 +35,7 @@ import type { ToolExecuteOptions } from '../handlers';
 import {
   createOpenAIContentAggregator,
   createOpenAIStreamTracker,
+  buildCompletionUsage,
   createOpenAIHandlers,
   sendFinalChunk,
   createChunk,
@@ -319,6 +320,10 @@ export function validateRequest(body: unknown): ChatCompletionValidationResult {
     return { valid: false, error: 'parent_message_id must be a string' };
   }
 
+  if (request.spec !== undefined && typeof request.spec !== 'string') {
+    return { valid: false, error: 'spec must be a string' };
+  }
+
   return { valid: true, request: request as unknown as ChatCompletionRequest };
 }
 
@@ -553,20 +558,12 @@ export async function createAgentChatCompletion(
       res.end();
     } else if (aggregator) {
       // Build and send non-streaming response
-      const usage: CompletionUsage = {
-        prompt_tokens: aggregator.usage.promptTokens,
-        completion_tokens: aggregator.usage.completionTokens,
-        total_tokens: aggregator.usage.promptTokens + aggregator.usage.completionTokens,
-        ...(aggregator.usage.reasoningTokens > 0 && {
-          completion_tokens_details: { reasoning_tokens: aggregator.usage.reasoningTokens },
-        }),
-      };
       const response = buildNonStreamingResponse(
         context,
         aggregator.getText(),
         aggregator.getReasoning(),
         aggregator.toolCalls,
-        usage,
+        buildCompletionUsage(aggregator.usage),
       );
       res.json(response);
     }

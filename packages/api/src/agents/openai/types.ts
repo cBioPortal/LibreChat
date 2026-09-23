@@ -75,6 +75,8 @@ export interface ChatCompletionRequest {
   conversation_id?: string;
   /** Parent message ID (LibreChat extension) */
   parent_message_id?: string;
+  /** Name of a configured modelSpec whose preset selects the agent's model (LibreChat extension) */
+  spec?: string;
 }
 
 /**
@@ -84,6 +86,11 @@ export interface CompletionUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /** Cached portion of `prompt_tokens` (OpenAI convention; `cache_creation_tokens` is a LibreChat extension) */
+  prompt_tokens_details?: {
+    cached_tokens: number;
+    cache_creation_tokens: number;
+  };
   /** Detailed breakdown of output tokens (OpenRouter/OpenAI convention) */
   completion_tokens_details?: {
     reasoning_tokens?: number;

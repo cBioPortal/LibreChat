@@ -18,15 +18,20 @@ const {
   createSafeUser,
   validateRequest,
   initializeAgent,
+  withAgentModel,
   getBalanceConfig,
   injectSkillPrimes,
+  addToCompletionUsage,
+  buildCompletionUsage,
   extractManualSkills,
   createErrorResponse,
   recordCollectedUsage,
   createSubagentUsageSink,
   getTransactionsConfig,
   resolveRecursionLimit,
+  validateAgentModel,
   findPiiMatchInMessages,
+  resolveRequestSpecModel,
   discoverConnectedAgents,
   getRemoteAgentPermissions,
   createToolExecuteHandler,
@@ -168,8 +173,8 @@ const OpenAIChatCompletionController = async (req, res) => {
   const agentId = request.model;
 
   // Look up the agent
-  const agent = await db.getAgent({ id: agentId });
-  if (!agent) {
+  const storedAgent = await db.getAgent({ id: agentId });
+  if (!storedAgent) {
     return sendErrorResponse(
       res,
       404,
@@ -177,6 +182,43 @@ const OpenAIChatCompletionController = async (req, res) => {
       'invalid_request_error',
       'model_not_found',
     );
+  }
+
+  const specResolution = resolveRequestSpecModel(
+    storedAgent,
+    request.spec,
+    appConfig?.modelSpecs?.list,
+  );
+  if (!specResolution.ok) {
+    return sendErrorResponse(
+      res,
+      400,
+      specResolution.error,
+      'invalid_request_error',
+      'invalid_spec',
+    );
+  }
+  const agent = specResolution.model
+    ? withAgentModel(storedAgent, specResolution.model)
+    : storedAgent;
+
+  if (specResolution.model) {
+    const modelValidation = await validateAgentModel({
+      req,
+      res,
+      agent,
+      logViolation,
+      modelsConfig: await getModelsConfig(req),
+    });
+    if (!modelValidation.isValid) {
+      return sendErrorResponse(
+        res,
+        400,
+        `Model spec "${request.spec}" selects a model that is not available`,
+        'invalid_request_error',
+        'invalid_spec',
+      );
+    }
   }
 
   const piiHit = findPiiMatchInMessages(request.messages, appConfig?.messageFilter?.pii);
@@ -700,8 +742,7 @@ const OpenAIChatCompletionController = async (req, res) => {
             const taggedUsage = markSummarizationUsage(usage, metadata);
             collectedUsage.push(taggedUsage);
             const target = isStreaming ? tracker : aggregator;
-            target.usage.promptTokens += taggedUsage.input_tokens ?? 0;
-            target.usage.completionTokens += taggedUsage.output_tokens ?? 0;
+            addToCompletionUsage(target.usage, taggedUsage);
           }
         },
       },
@@ -826,25 +867,12 @@ const OpenAIChatCompletionController = async (req, res) => {
         }
       }
 
-      // Build usage from aggregated data
-      const usage = {
-        prompt_tokens: aggregator.usage.promptTokens,
-        completion_tokens: aggregator.usage.completionTokens,
-        total_tokens: aggregator.usage.promptTokens + aggregator.usage.completionTokens,
-      };
-
-      if (aggregator.usage.reasoningTokens > 0) {
-        usage.completion_tokens_details = {
-          reasoning_tokens: aggregator.usage.reasoningTokens,
-        };
-      }
-
       const response = buildNonStreamingResponse(
         context,
         aggregator.getText(),
         aggregator.getReasoning(),
         aggregator.toolCalls,
-        usage,
+        buildCompletionUsage(aggregator.usage),
       );
       res.json(response);
       logger.debug(
