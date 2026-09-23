@@ -7,6 +7,7 @@ import {
 import type {
   TCustomConfig,
   TResponseUsage,
+  TResponseStats,
   TTokenUsageEvent,
   TContextUsageEvent,
   TTransactionsConfig,
@@ -740,4 +741,23 @@ export function createSubagentUsageSink(
      *  gauge) — child runs never reach ModelEndHandler's emit path. */
     onUsage?.(usage);
   };
+}
+
+/**
+ * Summarizes the primary model calls of one response (summarization, subagent
+ * and hidden sequential calls excluded) for `responseMessage.metadata.stats`.
+ */
+export function summarizePrimaryCalls(
+  events: ReadonlyArray<TTokenUsageEvent>,
+): Pick<TResponseStats, 'model' | 'calls'> {
+  let model: string | undefined;
+  let calls = 0;
+  for (const event of events) {
+    if (event.usage_type != null) {
+      continue;
+    }
+    calls += 1;
+    model = event.model ?? model;
+  }
+  return model ? { model, calls } : { calls };
 }

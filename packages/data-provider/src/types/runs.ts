@@ -127,6 +127,16 @@ export type TResponseUsage = {
   cost?: number;
 };
 
+/** Per-response run stats persisted on `responseMessage.metadata.stats`. */
+export type TResponseStats = {
+  /** Time from the start of generation until the response completed */
+  durationMs: number;
+  /** Model of the primary (non-summary/subagent) calls; the last one if they differ */
+  model?: string;
+  /** Number of primary model calls in the response */
+  calls?: number;
+};
+
 /** Provider-reported usage for a single completed model call. */
 export type TTokenUsageEvent = {
   input_tokens?: number;

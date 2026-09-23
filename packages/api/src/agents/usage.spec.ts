@@ -5,6 +5,7 @@ import type { BulkWriteDeps, PricingFns } from './transactions';
 import {
   computeUsageCostUSD,
   aggregateEmittedUsage,
+  summarizePrimaryCalls,
   createSubagentUsageSink,
   recordCollectedUsage,
   resolveAgentTokenConfig,
@@ -2089,5 +2090,22 @@ describe('resolveAgentTokenConfig', () => {
 
   it('returns the fallback when there is no per-agent map (single-endpoint graphs)', () => {
     expect(resolveAgentTokenConfig({ agentId: 'primary', fallback: primary })).toBe(primary);
+  });
+});
+
+describe('summarizePrimaryCalls', () => {
+  it('counts primary calls and reports the last primary model', () => {
+    const events: TTokenUsageEvent[] = [
+      { input_tokens: 10, output_tokens: 5, model: 'haiku' },
+      { input_tokens: 10, output_tokens: 5, model: 'summary-model', usage_type: 'summarization' },
+      { input_tokens: 10, output_tokens: 5, model: 'sonnet' },
+      { input_tokens: 10, output_tokens: 5, model: 'sub', usage_type: 'subagent' },
+    ];
+    expect(summarizePrimaryCalls(events)).toEqual({ model: 'sonnet', calls: 2 });
+  });
+
+  it('omits model when no primary event carried one', () => {
+    expect(summarizePrimaryCalls([{ input_tokens: 1 }])).toEqual({ calls: 1 });
+    expect(summarizePrimaryCalls([])).toEqual({ calls: 0 });
   });
 });

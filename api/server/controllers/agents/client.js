@@ -24,6 +24,7 @@ const {
   sendEvent,
   computeUsageCostUSD,
   aggregateEmittedUsage,
+  summarizePrimaryCalls,
   resolveAgentTokenConfig,
   buildPersistedContextUsage,
   computeSummaryUsedTokens,
@@ -893,6 +894,7 @@ class AgentClient extends BaseClient {
 
   /** @type {sendCompletion} */
   async sendCompletion(payload, opts = {}) {
+    const startedAt = Date.now();
     await this.chatCompletion({
       payload,
       onProgress: opts.onProgress,
@@ -901,8 +903,13 @@ class AgentClient extends BaseClient {
     });
 
     const completion = filterMalformedContentParts(this.contentParts);
-    const metadata = this.buildResponseMetadata();
-    return metadata ? { completion, metadata } : { completion };
+    /** @type {import('librechat-data-provider').TResponseStats} */
+    const stats = {
+      durationMs: Date.now() - startedAt,
+      ...summarizePrimaryCalls(this.usageEmitSink ?? []),
+    };
+    const metadata = { ...(this.buildResponseMetadata() ?? {}), stats };
+    return { completion, metadata };
   }
 
   /**

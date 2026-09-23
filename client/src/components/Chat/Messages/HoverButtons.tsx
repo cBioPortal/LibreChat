@@ -5,6 +5,7 @@ import type { TConversation, TMessage, TFeedback } from 'librechat-data-provider
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
 import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
+import MessageStats from './MessageStats';
 import Feedback from './Feedback';
 import { cn } from '~/utils';
 import store from '~/store';
@@ -263,6 +264,18 @@ const HoverButtons = ({
           endpoint={endpoint || undefined}
           model={conversation?.model ?? undefined}
           agent_id={conversation?.agent_id ?? undefined}
+        />
+      )}
+
+      {/* Response details */}
+      {!isCreatedByUser && !(isSubmitting && isLast) && (
+        <MessageStats
+          message={message}
+          className={cn(
+            'group-focus-within:visible group-hover:visible group-[.final-completion]:visible',
+            !isLast &&
+              'group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0',
+          )}
         />
       )}
     </div>
