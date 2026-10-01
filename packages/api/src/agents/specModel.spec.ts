@@ -1,12 +1,15 @@
 import { ConverseStreamCommand } from '@aws-sdk/client-bedrock-runtime';
 import { Providers, getChatModelClass } from '@librechat/agents';
+import { logger } from '@librechat/data-schemas';
 import type { TModelSpec } from 'librechat-data-provider';
 import {
   EModelEndpoint,
   AnthropicEffort,
+  tModelSpecSchema,
   bedrockInputParser,
   bedrockOutputParser,
 } from 'librechat-data-provider';
+import { getLLMConfig } from '../endpoints/anthropic/llm';
 import {
   withAgentModel,
   mergeSpecAgentParams,
@@ -16,11 +19,11 @@ import {
 } from './specModel';
 
 const spec = (preset: Record<string, unknown>): TModelSpec =>
-  ({
+  tModelSpecSchema.parse({
     name: 'spec',
     label: 'Spec',
     preset: { endpoint: EModelEndpoint.agents, ...preset },
-  }) as TModelSpec;
+  });
 
 describe('getModelSpecAgentModel', () => {
   it('returns the spec model when the spec targets the agent', () => {
@@ -52,6 +55,100 @@ describe('getModelSpecAgentModel', () => {
 });
 
 describe('getModelSpecAgentParams', () => {
+  it('warns once per dropped key after config parsing without logging values', () => {
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    const modelSpec = {
+      ...spec({
+        agent_id: 'agent_1',
+        maxTokens: 4096,
+        topP: 0.37,
+        max_tokens: 99999,
+        reasoning_effort: 'high',
+        stop: ['secret-stop-value'],
+      }),
+      name: 'dropped-key-spec',
+    };
+    expect(getModelSpecAgentParams({ id: 'agent_1' }, modelSpec)).toEqual({ maxTokens: 4096 });
+    expect(getModelSpecAgentParams({ id: 'agent_1' }, modelSpec)).toEqual({ maxTokens: 4096 });
+    expect(modelSpec.preset).toMatchObject({
+      topP: 0.37,
+      max_tokens: 99999,
+      reasoning_effort: 'high',
+      stop: ['secret-stop-value'],
+    });
+    expect(warn.mock.calls).toEqual(
+      ['topP', 'max_tokens', 'reasoning_effort', 'stop'].map((key) => [
+        `[getModelSpecAgentParams] Model spec "dropped-key-spec" dropped preset key "${key}": not allowlisted for agent overrides`,
+      ]),
+    );
+  });
+
+  it.each([undefined, 'Configured prompt'])(
+    'does not warn on the deployed preset with promptPrefix %s',
+    (promptPrefix) => {
+      const warn = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+      expect(
+        getModelSpecAgentParams(
+          { id: 'agent_1' },
+          spec({
+            agent_id: 'agent_1',
+            endpoint: EModelEndpoint.agents,
+            greeting: 'Welcome to cBioDBAgent',
+            maxTokens: 4096,
+            modelLabel: 'cBioDBAgent',
+            temperature: 0,
+            thinking: false,
+            promptPrefix,
+          }),
+        ),
+      ).toEqual({ maxTokens: 4096, temperature: 0, thinking: false });
+      expect(warn).not.toHaveBeenCalled();
+    },
+  );
+
+  it('recognizes preset display fields without forwarding them as agent parameters', () => {
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    expect(
+      getModelSpecAgentParams(
+        { id: 'agent_1' },
+        spec({
+          agent_id: 'agent_1',
+          modelLabel: 'cBioNavigator',
+          promptPrefix: 'Configured prompt',
+          iconURL: 'https://example.com/icon.png',
+          greeting: 'Welcome',
+          spec: 'navigator',
+          title: 'Navigator',
+          chatGptLabel: 'Legacy label',
+          maxTokens: 4096,
+        }),
+      ),
+    ).toEqual({ maxTokens: 4096 });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates separately for each spec name and dropped key after config parsing', () => {
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    for (const name of ['dedupe-spec-a', 'dedupe-spec-b']) {
+      const modelSpec = {
+        ...spec({ agent_id: 'agent_1', topP: 0.4, stop: ['private'] }),
+        name,
+      };
+      getModelSpecAgentParams({ id: 'agent_1' }, modelSpec);
+      getModelSpecAgentParams({ id: 'agent_1' }, modelSpec);
+    }
+    expect(warn).toHaveBeenCalledTimes(4);
+    expect(warn.mock.calls.flat().join(' ')).not.toContain('private');
+  });
+
+  it('cannot warn about true typos stripped by config parsing', () => {
+    const warn = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    const modelSpec = spec({ agent_id: 'agent_1', maxTokens: 4096, maxTokenz: 99999 });
+    expect(modelSpec.preset).not.toHaveProperty('maxTokenz');
+    expect(getModelSpecAgentParams({ id: 'agent_1' }, modelSpec)).toEqual({ maxTokens: 4096 });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('returns only allowlisted generation params from the spec preset', () => {
     expect(
       getModelSpecAgentParams(
@@ -95,7 +192,7 @@ describe('getModelSpecAgentParams', () => {
     expect(
       getModelSpecAgentParams(
         { id: 'agent_1' },
-        spec({ agent_id: 'agent_2', effort: 'low', promptCacheTtl: '1h' }),
+        spec({ agent_id: 'agent_2', effort: 'low', maxTokens: 4096, promptCacheTtl: '1h' }),
       ),
     ).toBeUndefined();
   });
@@ -252,6 +349,17 @@ describe('withAgentModel', () => {
 });
 
 describe('mergeSpecAgentParams', () => {
+  it.each([
+    [{ maxTokens: 4096 }, { maxTokens: 8192, maxOutputTokens: 16384 }, 4096],
+    [{ maxOutputTokens: 4096 }, { maxTokens: 8192 }, 4096],
+    [{ maxTokens: 8192, maxOutputTokens: 4096 }, { maxTokens: 16384 }, 4096],
+  ])('normalizes a preset cap over both saved aliases (%j)', (params, saved, expected) => {
+    expect(mergeSpecAgentParams(saved, params)).toEqual({
+      maxTokens: expected,
+      maxOutputTokens: expected,
+    });
+  });
+
   const savedThinking = {
     model: 'haiku',
     thinkingBudget: 2000,
@@ -314,6 +422,53 @@ describe('merged spec params through the Bedrock parsers', () => {
       model,
       getModelSpecAgentParams({ id: 'agent_1' }, spec({ agent_id: 'agent_1', model, ...preset })),
     ).model_parameters as Record<string, unknown>;
+
+  it.each([haiku, sonnet])('%s sends the preset maxTokens cap and no thinking', (model) => {
+    const parameters = merged(
+      model,
+      { thinking: false, maxTokens: 4096 },
+      {
+        maxTokens: 8192,
+        maxOutputTokens: 16384,
+        thinking: true,
+        thinkingBudget: 2000,
+        additionalModelRequestFields: { thinking: { type: 'enabled', budget_tokens: 2000 } },
+      },
+    );
+    const llmConfig = bedrockOutputParser(bedrockInputParser.parse(parameters));
+    const BedrockModel = getChatModelClass(Providers.BEDROCK);
+    const client = new BedrockModel({
+      ...llmConfig,
+      model,
+      region: 'us-east-1',
+      credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+    });
+    const command = new ConverseStreamCommand({
+      modelId: model,
+      messages: [],
+      ...client.invocationParams({}),
+    });
+    expect(command.input.inferenceConfig?.maxTokens).toBe(4096);
+    expect(command.input.additionalModelRequestFields ?? {}).not.toHaveProperty('thinking');
+  });
+
+  it.each(['claude-haiku-4-5', 'claude-sonnet-5'])(
+    '%s sends max_tokens 4096 with thinking disabled through the Anthropic agent client',
+    (model) => {
+      const parameters = merged(model, { thinking: false, maxTokens: 4096 });
+      const { llmConfig } = getLLMConfig('test-api-key', { modelOptions: parameters });
+      const AnthropicModel = getChatModelClass(Providers.ANTHROPIC);
+      const client = new AnthropicModel(llmConfig);
+      const request = client.invocationParams({});
+      expect(request.max_tokens).toBe(4096);
+      expect(request.thinking).toEqual({ type: 'disabled' });
+    },
+  );
+
+  it.each([haiku, sonnet])('%s prefers preset maxOutputTokens when both caps are set', (model) => {
+    const llmConfig = toBedrock(merged(model, { maxTokens: 8192, maxOutputTokens: 4096 }));
+    expect(llmConfig.maxTokens).toBe(4096);
+  });
 
   it.each([haiku, sonnet])('%s carries the spec TTL in the Bedrock request', (model) => {
     const parameters = merged(

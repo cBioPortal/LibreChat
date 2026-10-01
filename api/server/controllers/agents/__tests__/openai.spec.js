@@ -69,6 +69,7 @@ jest.mock('@librechat/data-schemas', () => ({
 }));
 
 jest.mock('@librechat/agents', () => ({
+  ...jest.requireActual('@librechat/agents'),
   Callback: { TOOL_ERROR: 'TOOL_ERROR' },
   ToolEndHandler: jest.fn(),
   formatAgentMessages: jest.fn().mockReturnValue({
@@ -585,6 +586,63 @@ describe('OpenAIChatCompletionController', () => {
       expect(withAgentModel).toHaveBeenCalledWith(fetched, 'sonnet', params);
       expect(initializeAgent.mock.calls.at(-1)[0].agent).toBe(merged);
     });
+
+    it.each([undefined, 4096])(
+      'ignores request maxTokens injection with a server cap of %s',
+      async (cap) => {
+        const actualApi = jest.requireActual('@librechat/api');
+        const {
+          validateRequest,
+          initializeAgent,
+          resolveRequestSpecModel,
+          withAgentModel,
+        } = require('@librechat/api');
+        const { getAgent } = require('~/models');
+        const fetched = {
+          ...storedAgent,
+          model_parameters: { model: 'haiku', maxTokens: 8192, maxOutputTokens: 8192 },
+        };
+        getAgent.mockResolvedValueOnce(fetched);
+        validateRequest.mockImplementationOnce(actualApi.validateRequest);
+        resolveRequestSpecModel.mockImplementationOnce(actualApi.resolveRequestSpecModel);
+        withAgentModel.mockImplementationOnce(actualApi.withAgentModel);
+        req.body = {
+          ...req.body,
+          spec: 'cap-spec',
+          maxTokens: 99999,
+          maxOutputTokens: 99999,
+          model_parameters: { maxTokens: 99999 },
+        };
+        req.config.modelSpecs = {
+          list: [
+            {
+              name: 'cap-spec',
+              preset: {
+                endpoint: 'agents',
+                agent_id: 'agent-123',
+                model: 'sonnet',
+                maxTokens: cap,
+              },
+            },
+          ],
+        };
+
+        await OpenAIChatCompletionController(req, res);
+
+        expect(withAgentModel).toHaveBeenCalledWith(
+          fetched,
+          'sonnet',
+          cap === undefined ? undefined : { maxTokens: cap },
+        );
+        expect(initializeAgent.mock.calls.at(-1)[0].agent.model_parameters).toEqual({
+          model: 'sonnet',
+          maxTokens: cap ?? 8192,
+          maxOutputTokens: cap ?? 8192,
+        });
+        expect(fetched.model_parameters.maxTokens).toBe(8192);
+        expect(res.status).not.toHaveBeenCalledWith(400);
+      },
+    );
 
     it('passes configured modelSpecs to the resolver', async () => {
       const { resolveRequestSpecModel } = require('@librechat/api');

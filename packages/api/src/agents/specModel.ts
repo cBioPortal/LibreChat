@@ -1,3 +1,4 @@
+import { logger } from '@librechat/data-schemas';
 import type { TModelSpec, TModelSpecPreset } from 'librechat-data-provider';
 
 /**
@@ -32,11 +33,32 @@ export const MODEL_SPEC_AGENT_PARAM_KEYS = [
   'thinking',
   'thinkingBudget',
   'effort',
+  'maxTokens',
   'maxOutputTokens',
   'temperature',
   'promptCache',
   'promptCacheTtl',
 ] as const;
+
+/** Display/identity fields are consumed separately from the agent generation overrides. */
+const recognizedPresetKeys = new Set<string>([
+  'endpoint',
+  'endpointType',
+  'agent_id',
+  'assistant_id',
+  'model',
+  'modelLabel',
+  'userLabel',
+  'greeting',
+  'iconURL',
+  'promptPrefix',
+  'spec',
+  'title',
+  'presetId',
+  'chatGptLabel',
+  ...MODEL_SPEC_AGENT_PARAM_KEYS,
+]);
+const warnedPresetKeys = new Set<string>();
 
 export type ModelSpecAgentParams = Pick<
   TModelSpecPreset,
@@ -56,6 +78,19 @@ export function getModelSpecAgentParams(
   const preset = modelSpec?.preset;
   if (!agent?.id || !preset || preset.agent_id !== agent.id) {
     return undefined;
+  }
+  for (const key of Object.keys(preset)) {
+    if (recognizedPresetKeys.has(key)) {
+      continue;
+    }
+    const warningKey = JSON.stringify([modelSpec.name, key]);
+    if (warnedPresetKeys.has(warningKey)) {
+      continue;
+    }
+    warnedPresetKeys.add(warningKey);
+    logger.warn(
+      `[getModelSpecAgentParams] Model spec "${modelSpec.name}" dropped preset key "${key}": not allowlisted for agent overrides`,
+    );
   }
   const entries = MODEL_SPEC_AGENT_PARAM_KEYS.filter((key) => preset[key] != null).map(
     (key) => [key, preset[key]] as const,
@@ -78,6 +113,8 @@ function omitSavedThinking(fields: unknown): unknown {
 /**
  * Merges a spec's model and allowlisted params over an agent's saved
  * model_parameters (see MODEL_SPEC_AGENT_PARAM_KEYS for precedence).
+ * A preset output cap overrides both saved aliases. When the preset sets both,
+ * maxOutputTokens wins, matching the Bedrock input parser's precedence.
  *
  * An explicit `thinking: false` also strips any saved thinking config, since a
  * persisted `additionalModelRequestFields.thinking` (e.g. `{ type: 'enabled',
@@ -92,6 +129,13 @@ export function mergeSpecAgentParams<T extends object>(
   const merged = { ...modelParameters, ...params, ...(model && { model }) } as T &
     ModelSpecAgentParams &
     SavedModelParameters;
+  const outputCap = params?.maxOutputTokens ?? params?.maxTokens;
+  if (outputCap != null) {
+    if (merged.maxTokens != null) {
+      merged.maxTokens = outputCap;
+    }
+    merged.maxOutputTokens = outputCap;
+  }
   if (params?.thinking !== false) {
     return merged;
   }

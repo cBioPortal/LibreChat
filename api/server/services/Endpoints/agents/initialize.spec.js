@@ -447,6 +447,54 @@ describe('initializeClient — processAgent ACL gate', () => {
       });
     });
 
+    it.each([undefined, 4096])(
+      'ignores request maxTokens injection with server cap %s',
+      async (cap) => {
+        const endpointOption = makeEndpointOption();
+        endpointOption.spec = 'cap-spec';
+        endpointOption.model_parameters = compactAgentsSchema.parse({
+          spec: 'cap-spec',
+          maxTokens: 99999,
+          maxOutputTokens: 99999,
+          model_parameters: { maxTokens: 99999 },
+        });
+        endpointOption.agent = Promise.resolve({
+          id: PRIMARY_ID,
+          name: 'Primary',
+          provider: 'bedrock',
+          model: 'haiku',
+          model_parameters: { maxTokens: 8192, maxOutputTokens: 8192 },
+          tools: [],
+        });
+        mockInitializeAgent.mockResolvedValue(makePrimaryConfig([]));
+        const req = makeReq();
+        req.body.maxTokens = 99999;
+        req.body.maxOutputTokens = 99999;
+        req.body.model_parameters = { maxTokens: 99999 };
+        req.config.modelSpecs = {
+          list: [
+            {
+              name: 'cap-spec',
+              preset: { endpoint: 'agents', agent_id: PRIMARY_ID, maxTokens: cap },
+            },
+          ],
+        };
+        await initializeClient({
+          req,
+          res: {},
+          signal: new AbortController().signal,
+          endpointOption,
+        });
+        expect(mockInitializeAgent.mock.calls[0][0].agent.model_parameters).toEqual({
+          maxTokens: cap ?? 8192,
+          maxOutputTokens: cap ?? 8192,
+        });
+        expect(mockInitializeAgent.mock.calls[0][0].endpointOption.model_parameters).toEqual({
+          spec: 'cap-spec',
+        });
+      },
+    );
+
     it('strips thinking saved in additionalModelRequestFields when the spec sets thinking:false', async () => {
       const endpointOption = makeEndpointOption();
       endpointOption.spec = 'haiku-fast';
