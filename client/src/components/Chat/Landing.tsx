@@ -152,9 +152,11 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     if (!otherSpec) {
       return;
     }
-    const preset = { ...otherSpec.preset };
-    preset.iconURL = getModelSpecIconURL(otherSpec);
-    preset.spec = otherSpec.name;
+    const preset: NonNullable<TModelSpec['preset']> & { spec?: string } = {
+      ...otherSpec.preset,
+      iconURL: getModelSpecIconURL(otherSpec),
+      spec: otherSpec.name,
+    };
     const newEndpoint = preset.endpoint ?? '';
     if (!newEndpoint) {
       return;
@@ -189,7 +191,6 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       newConversation({
         template: currentConvo,
         preset,
-        keepLatestMessage: true,
         keepAddedConvos: true,
       });
       return;

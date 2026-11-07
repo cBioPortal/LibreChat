@@ -765,6 +765,11 @@ const initializeClientWithProvider = async ({
    */
   const manualSkills = extractManualSkills(req.body);
 
+  const selectedModelSpec =
+    endpointOption.spec && Array.isArray(appConfig?.modelSpecs?.list)
+      ? appConfig.modelSpecs.list.find((modelSpec) => modelSpec.name === endpointOption.spec)
+      : null;
+
   if (
     primaryAgent &&
     isEphemeralAgentId(primaryAgent.id) &&

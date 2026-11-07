@@ -129,7 +129,7 @@ export type TMinimalFeedback = z.infer<typeof feedbackSchema>;
 
 export type TFeedback = {
   rating: TFeedbackRating;
-  tag: TFeedbackTag | undefined;
+  tag?: TFeedbackTag;
   text?: string;
 };
 
@@ -140,7 +140,7 @@ export function toMinimalFeedback(feedback: TFeedback | undefined): TMinimalFeed
 
   return {
     rating: feedback.rating,
-    tag: feedback.tag?.key ?? 'other',
+    tag: feedback.tag?.key,
     text: feedback.text,
   };
 }

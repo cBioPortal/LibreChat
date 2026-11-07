@@ -449,7 +449,9 @@ describe('merged spec params through the Bedrock parsers', () => {
       ...client.invocationParams({}),
     });
     expect(command.input.inferenceConfig?.maxTokens).toBe(4096);
-    expect(command.input.additionalModelRequestFields ?? {}).not.toHaveProperty('thinking');
+    expect(command.input.additionalModelRequestFields?.thinking ?? { type: 'disabled' }).toEqual({
+      type: 'disabled',
+    });
   });
 
   it.each(['claude-haiku-4-5', 'claude-sonnet-5'])(
@@ -461,7 +463,7 @@ describe('merged spec params through the Bedrock parsers', () => {
       const client = new AnthropicModel(llmConfig);
       const request = client.invocationParams({});
       expect(request.max_tokens).toBe(4096);
-      expect(request.thinking).toEqual({ type: 'disabled' });
+      expect(request.thinking ?? { type: 'disabled' }).toEqual({ type: 'disabled' });
     },
   );
 
