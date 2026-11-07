@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { TooltipAnchor } from '@librechat/client';
-import { getConfigDefaults } from 'librechat-data-provider';
+import { getConfigDefaults, isAgentsEndpoint } from 'librechat-data-provider';
+import type { TModelSpec, TAgentsMap } from 'librechat-data-provider';
 import type { ModelSelectorProps } from '~/common';
 import {
   renderModelSpecs,
@@ -12,9 +13,66 @@ import { ModelSelectorProvider, useModelSelectorContext } from './ModelSelectorC
 import { useShortcutAriaKey, useShortcutHint } from '~/hooks/useKeyboardShortcuts';
 import { ModelSelectorChatProvider } from './ModelSelectorChatContext';
 import { getSelectedIcon, getDisplayValue } from './utils';
+import SpecIcon from './components/SpecIcon';
 import { CustomMenu as Menu } from './CustomMenu';
 import DialogManager from './DialogManager';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
+
+function AgentButtonSelector({
+  specs,
+  selectedSpec,
+  endpointsConfig,
+  agentsMap,
+  onSelect,
+}: {
+  specs: TModelSpec[];
+  selectedSpec: string | null;
+  endpointsConfig: any;
+  agentsMap: TAgentsMap | undefined;
+  onSelect: (spec: TModelSpec) => void;
+}) {
+  const localize = useLocalize();
+  return (
+    <div className="relative inline-flex flex-row items-center gap-1.5">
+      <span className="text-sm text-text-secondary">{localize('com_ui_switch_agent')}</span>
+      {specs.map((spec) => {
+        const isSelected = selectedSpec === spec.name;
+        const description =
+          spec.description ||
+          agentsMap?.[spec.preset?.agent_id ?? '']?.description ||
+          spec.label ||
+          spec.name;
+        return (
+          <TooltipAnchor
+            key={spec.name}
+            description={description}
+            render={
+              <button
+                type="button"
+                onClick={() => onSelect(spec)}
+                className={cn(
+                  'my-1 flex h-10 items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors duration-200',
+                  isSelected
+                    ? 'border-text-primary bg-surface-active-alt font-semibold text-text-primary'
+                    : 'border-border-light bg-presentation text-text-secondary hover:bg-surface-active-alt hover:text-text-primary',
+                )}
+                aria-pressed={isSelected}
+              >
+                {(spec.showIconInHeader !== false) && (
+                  <div className="flex flex-shrink-0 items-center justify-center overflow-hidden">
+                    <SpecIcon currentSpec={spec} endpointsConfig={endpointsConfig} />
+                  </div>
+                )}
+                <span className="truncate">{spec.name}</span>
+              </button>
+            }
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 const defaultInterface = getConfigDefaults().interface;
 
@@ -36,6 +94,7 @@ function ModelSelectorContent() {
     // Functions
     setSearchValue,
     setSelectedValues,
+    handleSelectSpec,
     // Dialog
     keyDialogOpen,
     onOpenChange,
@@ -64,6 +123,26 @@ function ModelSelectorContent() {
       }),
     [localize, agentsMap, modelSpecs, selectedValues, mappedEndpoints],
   );
+
+  // Check if all model specs are agent endpoints — if so, use button selector
+  const allAgentSpecs = useMemo(() => {
+    if (!modelSpecs || modelSpecs.length === 0) return false;
+    return modelSpecs.every(
+      (spec) => spec.preset?.endpoint && isAgentsEndpoint(spec.preset.endpoint),
+    );
+  }, [modelSpecs]);
+
+  if (allAgentSpecs && modelSpecs) {
+    return (
+      <AgentButtonSelector
+        specs={modelSpecs}
+        selectedSpec={selectedValues.modelSpec}
+        endpointsConfig={endpointsConfig}
+        agentsMap={agentsMap}
+        onSelect={handleSelectSpec}
+      />
+    );
+  }
 
   const trigger = (
     <TooltipAnchor

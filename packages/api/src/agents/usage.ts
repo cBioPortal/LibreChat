@@ -3,6 +3,7 @@ import { inputTokensIncludesCache, reconcileContextUsageFromEvent } from 'librec
 import type {
   TCustomConfig,
   TResponseUsage,
+  TResponseStats,
   TTokenUsageEvent,
   TContextUsageEvent,
   TTransactionsConfig,
@@ -386,7 +387,12 @@ export function aggregateEmittedUsage(
  * payloads), where the client subtracts cache from input but `splitUsage`
  * would not. Keep in sync with `normalizeUsageUnits` in client/src/utils/tokens.ts.
  */
-function normalizeEventUnits(event: TTokenUsageEvent): {
+function normalizeEventUnits(
+  event: Pick<
+    TTokenUsageEvent,
+    'input_tokens' | 'output_tokens' | 'total_tokens' | 'input_token_details' | 'provider'
+  >,
+): {
   input: number;
   output: number;
   cacheWrite: number;
@@ -410,6 +416,29 @@ function normalizeEventUnits(event: TTokenUsageEvent): {
     cacheWrite,
     cacheRead,
   };
+}
+
+/** Running token totals for an OpenAI-compatible completion response. */
+export interface CompletionUsageTotals {
+  /** All input tokens: uncached + cache read + cache write */
+  promptTokens: number;
+  completionTokens: number;
+  reasoningTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+}
+
+/**
+ * Folds one model call's usage into completion totals, normalizing provider
+ * differences (Bedrock reports cache tokens outside `input_tokens`, Anthropic
+ * inside) so `promptTokens` is always the full input including cached tokens.
+ */
+export function addToCompletionUsage(totals: CompletionUsageTotals, usage: UsageMetadata): void {
+  const units = normalizeEventUnits(usage);
+  totals.promptTokens += units.input + units.cacheRead + units.cacheWrite;
+  totals.completionTokens += units.output;
+  totals.cacheReadTokens += units.cacheRead;
+  totals.cacheCreationTokens += units.cacheWrite;
 }
 
 /** The final primary (non-tagged) model call belonging to the snapshot's run —
@@ -1182,4 +1211,23 @@ export function createSubagentUsageSink(
      *  gauge) — child runs never reach ModelEndHandler's emit path. */
     emitUsage();
   };
+}
+
+/**
+ * Summarizes the primary model calls of one response (summarization, subagent
+ * and hidden sequential calls excluded) for `responseMessage.metadata.stats`.
+ */
+export function summarizePrimaryCalls(
+  events: ReadonlyArray<TTokenUsageEvent>,
+): Pick<TResponseStats, 'model' | 'calls'> {
+  let model: string | undefined;
+  let calls = 0;
+  for (const event of events) {
+    if (event.usage_type != null) {
+      continue;
+    }
+    calls += 1;
+    model = event.model ?? model;
+  }
+  return model ? { model, calls } : { calls };
 }

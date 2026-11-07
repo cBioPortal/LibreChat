@@ -51,6 +51,7 @@ import { createRoleModel } from './role';
 import { createFileModel } from './file';
 import { createKeyModel } from './key';
 import logger from '~/config/winston';
+import { createProductFeedbackModel } from './productFeedback';
 
 /**
  * Creates all database models for all collections
@@ -109,6 +110,7 @@ export function createModels(mongoose: typeof import('mongoose')): {
   RefreshTokenBridge: ReturnType<typeof createRefreshTokenBridgeModel>;
   OpenIDRefreshFlight: ReturnType<typeof createOpenIDRefreshFlightModel>;
   ResourceLock: ReturnType<typeof createResourceLockModel>;
+  ProductFeedback: ReturnType<typeof createProductFeedbackModel>;
 } {
   const models = {
     User: createUserModel(mongoose),
@@ -164,6 +166,7 @@ export function createModels(mongoose: typeof import('mongoose')): {
     RefreshTokenBridge: createRefreshTokenBridgeModel(mongoose),
     OpenIDRefreshFlight: createOpenIDRefreshFlightModel(mongoose),
     ResourceLock: createResourceLockModel(mongoose),
+    ProductFeedback: createProductFeedbackModel(mongoose),
   };
   /**
    * Background index builds fail silently unless an 'index' listener is

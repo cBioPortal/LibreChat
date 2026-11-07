@@ -16,6 +16,9 @@ const {
   GenerationJobManager,
   getCustomEndpointConfig,
   getProviderConfig,
+  getModelSpecAgentModel,
+  mergeSpecAgentParams,
+  getModelSpecAgentParams,
   discoverConnectedAgents,
   resolveAgentTokenConfig,
   resolveAgentScopedSkillIds,
@@ -381,6 +384,24 @@ const initializeClientWithProvider = async ({
         throw new Error('Agent not found');
       }
 
+      const requestedModelSpec =
+        endpointOption.spec && Array.isArray(appConfig?.modelSpecs?.list)
+          ? appConfig.modelSpecs.list.find((modelSpec) => modelSpec.name === endpointOption.spec)
+          : null;
+      const specModel = getModelSpecAgentModel(primaryAgent, requestedModelSpec);
+      const specParams = getModelSpecAgentParams(primaryAgent, requestedModelSpec);
+      if (specModel) {
+        primaryAgent.model = specModel;
+      }
+      if (specModel || specParams) {
+        /** Stored `model_parameters.model` outranks `agent.model` downstream, so pin it too */
+        primaryAgent.model_parameters = mergeSpecAgentParams(
+          primaryAgent.model_parameters,
+          specParams,
+          specModel,
+        );
+      }
+
       const validationResult = await validateAgentModel({
         req,
         res,
@@ -743,11 +764,6 @@ const initializeClientWithProvider = async ({
    * @type {string[] | undefined}
    */
   const manualSkills = extractManualSkills(req.body);
-
-  const selectedModelSpec =
-    endpointOption.spec && Array.isArray(appConfig?.modelSpecs?.list)
-      ? appConfig.modelSpecs.list.find((modelSpec) => modelSpec.name === endpointOption.spec)
-      : null;
 
   if (
     primaryAgent &&

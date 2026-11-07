@@ -95,6 +95,7 @@ export default defineConfig(({ command }) => ({
     themeCacheVersion(),
     copyPublicAssets(),
     VitePWA({
+      selfDestroying: true, // unregister existing service workers and clear caches
       injectRegister: 'auto', // 'auto' | 'manual' | 'disabled'
       registerType: 'autoUpdate', // 'prompt' | 'autoUpdate'
       devOptions: {

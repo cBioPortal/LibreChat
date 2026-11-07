@@ -122,6 +122,7 @@ export async function loadDefaultInterface({
     prompts: interfaceConfig?.prompts,
     multiConvo: interfaceConfig?.multiConvo,
     agents: interfaceConfig?.agents,
+    showSwitchAgent: interfaceConfig?.showSwitchAgent,
     temporaryChat: interfaceConfig?.temporaryChat,
     temporaryChatRetention: interfaceConfig?.temporaryChatRetention,
     generalChatRetention: interfaceConfig?.generalChatRetention,

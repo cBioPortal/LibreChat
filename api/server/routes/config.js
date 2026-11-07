@@ -361,6 +361,12 @@ router.get('/', async function (req, res) {
       rum: getRumConfig(appConfig?.config?.telemetry),
       fileUploadSseEnabled: isEnabled(process.env.FILE_UPLOAD_SSE_ENABLED),
       endpointsDropParamsMap: endpointsDropParamsMap,
+      productFeedbackEnabled: isEnabled(process.env.PRODUCT_FEEDBACK_ENABLED),
+      powerUserEmails: process.env.POWER_USER_EMAILS
+        ? process.env.POWER_USER_EMAILS.split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        : undefined,
     };
 
     const webSearch = buildWebSearchConfig(appConfig);

@@ -15,6 +15,7 @@ import { QueuedTurnPortalProvider } from './Steering/QueuedTurnPortal';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
 import ApprovalProvider from './Messages/Content/ApprovalContext';
 import ConversationStarters from './Input/ConversationStarters';
+import LimitBadge from './Input/LimitBadge';
 import { pendingApprovalActionFamily } from './approval/state';
 import ProjectBadge from '~/components/Projects/ProjectBadge';
 import { composerLiftFamily } from './Input/Composer/state';
@@ -232,6 +233,7 @@ function ChatPane({
                               centerFormOnLanding={centerFormOnLanding}
                             />
                           )}
+                          {isLandingPage && <LimitBadge />}
                           {/* The generic disclaimer and the policy links are the
                               welcome screen's; a deployment's own footer stays
                               with the conversation that always showed it. */}

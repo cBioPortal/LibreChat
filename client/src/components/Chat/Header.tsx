@@ -24,7 +24,7 @@ import BookmarkMenu from './Menus/BookmarkMenu';
 import { useChatContext } from '~/Providers';
 import AddMultiConvo from './AddMultiConvo';
 import { useHasAccess } from '~/hooks';
-import { cn } from '~/utils';
+import { cn, countSelectorEntries } from '~/utils';
 import store from '~/store';
 
 const defaultInterface = getConfigDefaults().interface;
@@ -81,6 +81,13 @@ function Header({
   const showTemporaryChat =
     hasAccessToTemporaryChat === true || isForcedTemporaryRetention(interfaceConfig.retentionMode);
 
+  const showModelSelector = useMemo(
+    () =>
+      interfaceConfig.modelSelect === true ||
+      countSelectorEntries(startupConfig?.modelSpecs?.list) !== 1,
+    [interfaceConfig.modelSelect, startupConfig?.modelSpecs?.list],
+  );
+
   /** Child threads are view-only records of their parent's run and have no trace of their own. */
   const trace = useTraceControl({
     conversationId: isNewChat ? null : routeConversationId,
@@ -110,7 +117,7 @@ function Header({
         {parentConversationId != null && (
           <SubagentThreadLink threadId={parentConversationId} labelClassName="hidden lg:inline" />
         )}
-        {!readOnly && <ModelSelector startupConfig={startupConfig} />}
+        {!readOnly && showModelSelector && <ModelSelector startupConfig={startupConfig} />}
         {!readOnly && interfaceConfig.presets === true && interfaceConfig.modelSelect === true && (
           <PresetsMenu />
         )}

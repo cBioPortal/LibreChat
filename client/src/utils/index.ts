@@ -79,6 +79,7 @@ export * from './toolCallPhase';
 export * from './documentTitle';
 export * from './reasoningLabels';
 export * from './numbers';
+export * from './modelOptions';
 export { default as cn } from './cn';
 export { default as logger } from './logger';
 export { default as getLoginError } from './getLoginError';

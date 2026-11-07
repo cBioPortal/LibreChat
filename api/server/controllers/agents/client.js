@@ -32,6 +32,7 @@ const {
   sendEvent,
   computeUsageCostUSD,
   aggregateEmittedUsage,
+  summarizePrimaryCalls,
   resolveAgentTokenConfig,
   buildPersistedContextUsage,
   resolveRetainedToolTokens,
@@ -3680,6 +3681,7 @@ class AgentClient extends BaseClient {
 
   /** @type {sendCompletion} */
   async sendCompletion(payload, opts = {}) {
+    const startedAt = Date.now();
     await this.chatCompletion({
       payload,
       onProgress: opts.onProgress,
@@ -3693,8 +3695,13 @@ class AgentClient extends BaseClient {
         aborted: this.abortController?.signal?.aborted === true,
       });
     }
-    const metadata = this.buildResponseMetadata();
-    return metadata ? { completion, metadata } : { completion };
+    /** @type {import('librechat-data-provider').TResponseStats} */
+    const stats = {
+      durationMs: Date.now() - startedAt,
+      ...summarizePrimaryCalls(this.usageEmitSink ?? []),
+    };
+    const metadata = { ...(this.buildResponseMetadata() ?? {}), stats };
+    return { completion, metadata };
   }
 
   /** A manual compaction runs the graph summarize-only: the summary is the response. */
@@ -4694,7 +4701,9 @@ class AgentClient extends BaseClient {
                 event_actor_depth: 1,
               }),
           last_agent_index: this.agentConfigs?.size ?? 0,
-          user_id: this.user ?? this.options.req.user?.id,
+          user_id: this.options.req.user?.email ?? this.user ?? this.options.req.user?.id,
+          agent_id: this.options.agent.id,
+          agent_name: this.options.agent.name,
           hide_sequential_outputs: this.options.agent.hide_sequential_outputs,
           requestBody:
             this.options.mcpRequestBody ??
@@ -6284,6 +6293,10 @@ class AgentClient extends BaseClient {
         chainOptions: {
           runName: 'TitleRun',
           signal: abortController.signal,
+          configurable: {
+            user_id: this.options.req.user?.email ?? this.user ?? this.options.req.user?.id,
+            thread_id: this.conversationId,
+          },
           callbacks: [
             {
               handleLLMEnd,

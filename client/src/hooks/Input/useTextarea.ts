@@ -34,7 +34,7 @@ import { useAgentsMapContext } from '~/Providers/AgentsMapContext';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
 import useGetSender from '~/hooks/Conversations/useGetSender';
 import useUploadOptions from '~/hooks/Files/useUploadOptions';
-import { useInteractionHealthCheck } from '~/data-provider';
+import { useGetStartupConfig, useInteractionHealthCheck } from '~/data-provider';
 import { resolveComposerKeyDown } from '~/utils/shortcuts';
 import { useChatContext } from '~/Providers/ChatContext';
 import { globalAudioId } from '~/common';
@@ -71,6 +71,7 @@ export default function useTextarea({
 }) {
   const localize = useLocalize();
   const getSender = useGetSender();
+  const { data: startupConfig } = useGetStartupConfig();
   const { setValue } = useChatFormContext();
   const isComposing = useRef(false);
   const agentsMap = useAgentsMapContext();
@@ -115,6 +116,11 @@ export default function useTextarea({
     assistant_id: conversation?.assistant_id,
   });
   const entityName = entity?.name ?? '';
+  const modelSpecPlaceholder =
+    startupConfig?.modelSpecs?.list?.find(
+      (spec) =>
+        spec.name === conversation?.spec || spec.preset?.agent_id === conversation?.agent_id,
+    )?.placeholder ?? '';
 
   const isNotAppendable =
     latestMessage?.error === true && latestMessage.isCreatedByUser === true && !isAssistant;
@@ -185,6 +191,9 @@ export default function useTextarea({
       const currentEndpoint = conversation?.endpoint ?? '';
       const currentAgentId = conversation?.agent_id ?? '';
       const currentAssistantId = conversation?.assistant_id ?? '';
+      if (isAgent && modelSpecPlaceholder) {
+        return modelSpecPlaceholder;
+      }
       if (isAgent && (!currentAgentId || !agentsMap?.[currentAgentId])) {
         return localize('com_endpoint_agent_placeholder');
       } else if (
@@ -238,6 +247,7 @@ export default function useTextarea({
     getSender,
     agentsMap,
     entityName,
+    modelSpecPlaceholder,
     textAreaRef,
     isAssistant,
     assistantMap,

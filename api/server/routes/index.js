@@ -41,6 +41,7 @@ const tags = require('./tags');
 const auth = require('./auth');
 const keys = require('./keys');
 const user = require('./user');
+const feedbackIssues = require('./feedbackIssues');
 const mcp = require('./mcp');
 const rum = require('./rum');
 const insights = require('./insights');
@@ -91,5 +92,6 @@ module.exports = {
   assistants,
   categories,
   staticRoute,
+  feedbackIssues,
   accessPermissions,
 };

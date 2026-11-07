@@ -345,10 +345,43 @@ export const useUpdateFeedbackMutation = (
     (payload: t.TUpdateFeedbackRequest) =>
       dataService.updateFeedback(conversationId, messageId, payload),
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries([QueryKeys.messages, messageId]);
+      onSuccess: (data) => {
+        queryClient.setQueryData<t.TMessage[]>(
+          [QueryKeys.messages, conversationId],
+          (prev) => {
+            if (!prev) {
+              return prev;
+            }
+            return prev.map((msg) => {
+              if (msg.messageId === messageId) {
+                return {
+                  ...msg,
+                  feedback: data.feedback
+                    ? {
+                        rating: data.feedback.rating,
+                        tag: data.feedback.tag ? { key: data.feedback.tag } : undefined,
+                        text: data.feedback.text,
+                      }
+                    : undefined,
+                } as t.TMessage;
+              }
+              return msg;
+            });
+          },
+        );
       },
     },
+  );
+};
+
+export const useSubmitProductFeedbackMutation = (): UseMutationResult<
+  dataService.TProductFeedbackResponse,
+  Error,
+  dataService.TProductFeedbackPayload
+> => {
+  return useMutation(
+    (payload: dataService.TProductFeedbackPayload) =>
+      dataService.submitProductFeedback(payload),
   );
 };
 

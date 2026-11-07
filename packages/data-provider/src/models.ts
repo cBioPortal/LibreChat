@@ -20,6 +20,7 @@ export type TModelSpec = {
   default?: boolean;
   softDefault?: boolean;
   description?: string;
+  placeholder?: string;
   /**
    * Optional group name for organizing specs in the UI selector.
    * - If it matches an endpoint name (e.g., "openAI", "groq"), the spec appears nested under that endpoint
@@ -47,6 +48,21 @@ export type TModelSpec = {
    * Defaults to true (listed).
    */
   showInMenu?: boolean;
+  showSwitchAgent?: boolean;
+  modelOption?: {
+    label: string;
+    description?: string;
+  };
+  limitBadge?: {
+    messages?: string;
+    tokens?: string;
+  };
+  conversationStarterCategories?: Array<{
+    label: string;
+    description?: string;
+    icon?: string;
+    starters: string[];
+  }>;
   iconURL?: string | EModelEndpoint; // Allow using project-included icons
   authType?: AuthType;
   /** Hide the chat input tool badge row while this model spec is active. */
@@ -176,6 +192,13 @@ export function materializeModelSpecEndpoints<
   return { ...modelSpecs, list: materialized } as T;
 }
 
+const tConversationStarterCategorySchema = z.object({
+  label: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  starters: z.array(z.string()),
+});
+
 export const tModelSpecSchema = z.object({
   name: z.string(),
   label: z.string(),
@@ -184,6 +207,7 @@ export const tModelSpecSchema = z.object({
   default: z.boolean().optional(),
   softDefault: z.boolean().optional(),
   description: z.string().optional(),
+  placeholder: z.string().optional(),
   group: z.string().optional(),
   groupIcon: z.union([z.string(), eModelEndpointSchema]).optional(),
   showIconInMenu: z.boolean().optional(),
@@ -191,6 +215,25 @@ export const tModelSpecSchema = z.object({
   showOnLanding: z.boolean().optional(),
   conversation_starters: z.array(z.string()).optional(),
   showInMenu: z.boolean().optional(),
+  showSwitchAgent: z.boolean().optional(),
+  /**
+   * Offers this spec as a model choice in the chat input's model picker.
+   * Specs sharing `preset.agent_id` that all set `modelOption` are grouped
+   * into one picker and collapse to a single entry in the header selector.
+   */
+  modelOption: z
+    .object({
+      label: z.string(),
+      description: z.string().optional(),
+    })
+    .optional(),
+  limitBadge: z
+    .object({
+      messages: z.string().optional(),
+      tokens: z.string().optional(),
+    })
+    .optional(),
+  conversationStarterCategories: z.array(tConversationStarterCategorySchema).optional(),
   iconURL: z.union([z.string(), eModelEndpointSchema]).optional(),
   authType: authTypeSchema.optional(),
   hideBadgeRow: z.boolean().optional(),

@@ -66,6 +66,7 @@ import { chatDirectionAtom } from '~/store/chatDirection';
 import Hints, { composerHintId } from './Composer/Hints';
 import PastedTextDialog from './Files/PastedTextDialog';
 import DuringRunSendButton from './DuringRunSendButton';
+import ModelOptionPicker from './ModelOptionPicker';
 import ProjectLandingChip from '../ProjectLandingChip';
 import useHasAccess from '~/hooks/Roles/useHasAccess';
 import useDictation from '~/hooks/Input/useDictation';
@@ -1007,6 +1008,12 @@ const ChatForm = memo(function ChatForm({
                   dictation={dictation}
                   approvalSlot={
                     <div className="flex items-center gap-1.5">
+                      <ModelOptionPicker
+                        index={index}
+                        modelSpec={modelSpec}
+                        disabled={isSubmitting}
+                        newConversation={newConversation}
+                      />
                       <CodeApprovalMenu
                         conversation={conversation}
                         addedConversation={addedConvo}

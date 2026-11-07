@@ -3135,6 +3135,7 @@ export const interfaceSchema = z
         }),
       ])
       .optional(),
+    showSwitchAgent: z.boolean().optional(),
     temporaryChat: z.boolean().optional(),
     temporaryChatRetention: z.number().min(1).max(8760).optional(),
     generalChatRetention: z.number().min(1).max(8760).optional(),
@@ -3378,6 +3379,7 @@ export const interfaceSchema = z
       share: false,
       public: false,
     },
+    showSwitchAgent: true,
     temporaryChat: true,
     autoSubmitFromUrl: true,
     colorModeFromUrl: false,
@@ -3756,6 +3758,8 @@ export type TStartupConfig = {
   };
   fileUploadSseEnabled?: boolean;
   endpointsDropParamsMap?: EndpointsDropParamsMap;
+  productFeedbackEnabled?: boolean;
+  powerUserEmails?: string[];
 };
 
 export type TSharedLinkStartupInterface = Pick<

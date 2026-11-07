@@ -1,13 +1,28 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { useRecoilValue } from 'recoil';
 import { HatGlasses } from 'lucide-react';
 import { easings } from '@react-spring/web';
-import { EModelEndpoint } from 'librechat-data-provider';
+import { EModelEndpoint, isAgentsEndpoint } from 'librechat-data-provider';
+import type { TModelSpec, TConversation } from 'librechat-data-provider';
 import { BirthdayIcon, TooltipAnchor, SplitText, useRemScale } from '@librechat/client';
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
 import Description, { isHtmlDescription } from '~/components/ui/Description';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
-import { getIconEndpoint, getEntity, getModelSpec } from '~/utils';
-import { useLocalize, useAuthContext, useGreeting } from '~/hooks';
+import {
+  getIconEndpoint,
+  getEntity,
+  getModelSpec,
+  getModelSpecIconURL,
+  getConvoSwitchLogic,
+} from '~/utils';
+import {
+  useLocalize,
+  useAuthContext,
+  useGreeting,
+  useDefaultConvo,
+  useNewConvo,
+} from '~/hooks';
+import store from '~/store';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
 import AgentContact from '~/components/Agents/AgentContact';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
@@ -46,6 +61,9 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const localize = useLocalize();
   const remScale = useRemScale();
   const { isTemporary } = useChatSettings();
+  const { newConversation } = useNewConvo();
+  const getDefaultConversation = useDefaultConvo();
+  const modularChat = useRecoilValue(store.modularChat);
 
   const [textHasMultipleLines, setTextHasMultipleLines] = useState(false);
   const [lineCount, setLineCount] = useState(1);
@@ -77,6 +95,14 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     [conversation?.spec, startupConfig],
   );
 
+  const currentSpec = useMemo(() => {
+    const specs = startupConfig?.modelSpecs?.list ?? [];
+    return specs.find(
+      (s: TModelSpec) =>
+        s.name === conversation?.spec || s.preset?.agent_id === conversation?.agent_id,
+    );
+  }, [startupConfig?.modelSpecs?.list, conversation?.spec, conversation?.agent_id]);
+
   const brandedSpecLabel = modelSpec?.showOnLanding ? modelSpec.label : '';
   const brandedSpecDescription = (modelSpec?.showOnLanding && modelSpec.description) || '';
   const name =
@@ -85,7 +111,11 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       : (entity?.name ?? brandedSpecLabel);
   const description = isTemporary
     ? localize('com_ui_temporary_description')
-    : ((entity?.description || brandedSpecDescription || conversation?.greeting) ?? '');
+    : ((conversation?.greeting ||
+        entity?.description ||
+        currentSpec?.description ||
+        brandedSpecDescription) ??
+      '');
   const descriptionIsHTML = isHtmlDescription(description);
   const selectedAgent =
     isAgent && conversation?.agent_id != null ? agentsMap?.[conversation.agent_id] : undefined;
@@ -94,6 +124,90 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     typeof startupConfig?.interface?.customWelcome === 'string'
       ? startupConfig.interface.customWelcome
       : undefined;
+
+  const otherSpec = useMemo(() => {
+    if (startupConfig?.interface?.showSwitchAgent === false) {
+      return undefined;
+    }
+    const specs = startupConfig?.modelSpecs?.list ?? [];
+    const switchableSpecs = specs.filter(
+      (s: TModelSpec) => s.showSwitchAgent && isAgentsEndpoint(s.preset?.endpoint),
+    );
+    if (switchableSpecs.length < 2) {
+      return undefined;
+    }
+    const currentAgentId = conversation?.agent_id;
+    const currentIndex = switchableSpecs.findIndex(
+      (s: TModelSpec) => s.preset?.agent_id === currentAgentId,
+    );
+    const nextIndex = (currentIndex + 1) % switchableSpecs.length;
+    return switchableSpecs[nextIndex];
+  }, [
+    startupConfig?.interface?.showSwitchAgent,
+    startupConfig?.modelSpecs?.list,
+    conversation?.agent_id,
+  ]);
+
+  const handleSwitchAgent = useCallback(() => {
+    if (!otherSpec) {
+      return;
+    }
+    const preset = { ...otherSpec.preset };
+    preset.iconURL = getModelSpecIconURL(otherSpec);
+    preset.spec = otherSpec.name;
+    const newEndpoint = preset.endpoint ?? '';
+    if (!newEndpoint) {
+      return;
+    }
+
+    const {
+      template,
+      shouldSwitch,
+      isNewModular,
+      newEndpointType,
+      isCurrentModular,
+      isExistingConversation,
+    } = getConvoSwitchLogic({
+      newEndpoint,
+      modularChat,
+      conversation,
+      endpointsConfig,
+    });
+
+    if (newEndpointType) {
+      preset.endpointType = newEndpointType;
+    }
+
+    const isModular = isCurrentModular && isNewModular && shouldSwitch;
+    if (isExistingConversation && isModular) {
+      template.endpointType = newEndpointType as EModelEndpoint | undefined;
+      const currentConvo = getDefaultConversation({
+        conversation: { ...(conversation ?? {}), endpointType: template.endpointType },
+        preset: template,
+        cleanOutput: true,
+      });
+      newConversation({
+        template: currentConvo,
+        preset,
+        keepLatestMessage: true,
+        keepAddedConvos: true,
+      });
+      return;
+    }
+
+    newConversation({
+      template: { ...(template as Partial<TConversation>) },
+      preset,
+      keepAddedConvos: isModular,
+    });
+  }, [
+    otherSpec,
+    modularChat,
+    conversation,
+    endpointsConfig,
+    getDefaultConversation,
+    newConversation,
+  ]);
 
   const scheduledGreeting = useGreeting(user?.name);
 
@@ -139,7 +253,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
 
   return (
     <div
-      className={`flex h-full transform-gpu flex-col items-center justify-center pb-16 transition-all duration-200 ${centerFormOnLanding ? 'max-h-full sm:max-h-0' : 'max-h-full'} ${getDynamicMargin}`}
+      className={`flex w-full shrink-0 transform-gpu flex-col items-center justify-start pb-6 transition-all duration-200 ${centerFormOnLanding ? 'pt-2 sm:pt-4' : 'pt-4'} ${getDynamicMargin}`}
     >
       <div ref={contentRef} className="flex flex-col items-center gap-0 p-2">
         <div
@@ -215,6 +329,16 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
               : `animate-fadeIn mt-4 max-w-md text-center text-sm font-normal ${isTemporary ? 'text-text-secondary' : 'text-text-primary'}`
           }
         />
+        {otherSpec && !isTemporary && (
+          <div className="animate-fadeIn mt-4 flex flex-row items-center gap-3">
+            <button
+              onClick={handleSwitchAgent}
+              className="rounded-full border border-border-light bg-surface-secondary px-4 py-2 text-sm font-medium text-text-primary transition-colors duration-200 hover:bg-surface-tertiary"
+            >
+              {localize('com_ui_switch_agent')}
+            </button>
+          </div>
+        )}
         {selectedAgent && !isTemporary && (
           <AgentContact
             agent={selectedAgent}

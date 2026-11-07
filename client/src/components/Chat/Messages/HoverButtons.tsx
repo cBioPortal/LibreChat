@@ -19,6 +19,7 @@ import { hasEditablePart } from './Content/editableParts';
 import { Fork } from '~/components/Conversations';
 import { hoverButtonClasses } from './styles';
 import MessageAudio from './MessageAudio';
+import MessageStats from './MessageStats';
 import Feedback from './Feedback';
 import { cn } from '~/utils';
 import store from '~/store';
@@ -236,36 +237,6 @@ const HoverButtons = ({
         />
       )}
 
-      {/* Edit Button */}
-      {!isSubagentThreadReadOnly && isEditableEndpoint && !hideEditButton && (
-        <HoverButton
-          id={`edit-${message.messageId}`}
-          onClick={onEdit}
-          title={localize('com_ui_edit')}
-          icon={<EditIcon size="19" />}
-          isActive={isEditing}
-          isLast={isLast}
-          className={isCreatedByUser ? '' : 'active'}
-        />
-      )}
-
-      {/* Fork Button: withheld on a failed turn, whose copy would carry the provider's error as an
-          ordinary answer. The error card's "Branch without files" copies up to the turn before. */}
-      {!error && !isActiveStreamingMessage && (
-        <Fork
-          messageId={message.messageId}
-          conversationId={conversation.conversationId}
-          forkingSupported={forkingSupported}
-          getLatestMessageId={getLatestMessageId ?? (() => latestMessageId)}
-          isLast={isLast}
-        />
-      )}
-
-      {/* Feedback Buttons */}
-      {!error && !isActiveStreamingMessage && !isCreatedByUser && handleFeedback != null && (
-        <Feedback handleFeedback={handleFeedback} feedback={message.feedback} isLast={isLast} />
-      )}
-
       {/* Regenerate Button */}
       {!isSubagentThreadReadOnly && regenerateEnabled && (
         <HoverButton
@@ -287,6 +258,32 @@ const HoverButtons = ({
           isLast={isLast}
           dataTestId={isLast ? 'continue-generation-button' : undefined}
           className="active"
+        />
+      )}
+
+      {/* Feedback Buttons */}
+      {!error && !isActiveStreamingMessage && !isCreatedByUser && handleFeedback != null && (
+        <Feedback
+          handleFeedback={handleFeedback}
+          feedback={message.feedback}
+          isLast={isLast}
+          conversationId={conversation.conversationId ?? undefined}
+          messageId={message.messageId ?? undefined}
+          endpoint={endpoint || undefined}
+          model={conversation?.model ?? undefined}
+          agent_id={conversation?.agent_id ?? undefined}
+        />
+      )}
+
+      {/* Response details */}
+      {!isCreatedByUser && !(isSubmitting && isLast) && (
+        <MessageStats
+          message={message}
+          className={cn(
+            'group-focus-within:visible group-hover:visible group-[.final-completion]:visible',
+            !isLast &&
+              'group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0',
+          )}
         />
       )}
     </div>
