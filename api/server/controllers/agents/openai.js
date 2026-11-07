@@ -31,6 +31,9 @@ const {
   createSafeUser,
   validateRequest,
   initializeAgent,
+  withAgentModel,
+  validateAgentModel,
+  resolveRequestSpecModel,
   getBalanceConfig,
   injectSkillPrimes,
   extractManualSkills,
@@ -470,8 +473,8 @@ const executeOpenAIChatCompletion = async (envelope, { req, res }) => {
         req.chatProjectContext = project.context;
       }
 
-      const agent = await agentPromise;
-      if (!agent) {
+      const storedAgent = await agentPromise;
+      if (!storedAgent) {
         return sendErrorResponse(
           res,
           404,
@@ -479,6 +482,42 @@ const executeOpenAIChatCompletion = async (envelope, { req, res }) => {
           'invalid_request_error',
           'model_not_found',
         );
+      }
+
+      const specResolution = resolveRequestSpecModel(
+        storedAgent,
+        request.spec,
+        appConfig?.modelSpecs?.list,
+      );
+      if (!specResolution.ok) {
+        return sendErrorResponse(
+          res,
+          400,
+          specResolution.error,
+          'invalid_request_error',
+          'invalid_spec',
+        );
+      }
+      const agent = specResolution.model
+        ? withAgentModel(storedAgent, specResolution.model, specResolution.params)
+        : storedAgent;
+      if (specResolution.model) {
+        const modelValidation = await validateAgentModel({
+          req,
+          res,
+          agent,
+          logViolation,
+          modelsConfig: await getModelsConfig(req),
+        });
+        if (!modelValidation.isValid) {
+          return sendErrorResponse(
+            res,
+            400,
+            `Model spec "${request.spec}" selects a model that is not available`,
+            'invalid_request_error',
+            'invalid_spec',
+          );
+        }
       }
 
       req.turnStartedAt = envelope.receivedAt;

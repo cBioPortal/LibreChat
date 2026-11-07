@@ -187,6 +187,7 @@ export interface CollectedUsageTotals {
   outputTokens: number;
   totalTokens: number;
   cacheReadTokens: number;
+  cacheCreationTokens: number;
   reasoningTokens: number;
 }
 
@@ -229,6 +230,7 @@ function emptyCollectedUsageTotals(): CollectedUsageTotals {
     outputTokens: 0,
     totalTokens: 0,
     cacheReadTokens: 0,
+    cacheCreationTokens: 0,
     reasoningTokens: 0,
   };
 }
@@ -249,7 +251,7 @@ export function aggregateCollectedUsage(
     if (usage == null) {
       continue;
     }
-    const { totalInput, cacheRead, completion } = splitUsage(usage);
+    const { totalInput, cacheRead, cacheCreation, completion } = splitUsage(usage);
     const bucket = usage.usage_type === 'subagent' ? subagent : primary;
     const reasoningTokens =
       Number(
@@ -259,6 +261,7 @@ export function aggregateCollectedUsage(
     bucket.outputTokens += completion;
     bucket.totalTokens += totalInput + completion;
     bucket.cacheReadTokens += cacheRead;
+    bucket.cacheCreationTokens += cacheCreation;
     bucket.reasoningTokens += reasoningTokens;
   }
 
@@ -268,6 +271,7 @@ export function aggregateCollectedUsage(
       outputTokens: primary.outputTokens + subagent.outputTokens,
       totalTokens: primary.totalTokens + subagent.totalTokens,
       cacheReadTokens: primary.cacheReadTokens + subagent.cacheReadTokens,
+      cacheCreationTokens: primary.cacheCreationTokens + subagent.cacheCreationTokens,
       reasoningTokens: primary.reasoningTokens + subagent.reasoningTokens,
     },
     primary,

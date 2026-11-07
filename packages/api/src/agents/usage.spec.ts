@@ -102,6 +102,7 @@ describe('aggregateCollectedUsage', () => {
         outputTokens: 40,
         totalTokens: 140,
         cacheReadTokens: 0,
+        cacheCreationTokens: 0,
         reasoningTokens: 0,
       },
       primary: {
@@ -109,6 +110,7 @@ describe('aggregateCollectedUsage', () => {
         outputTokens: 40,
         totalTokens: 140,
         cacheReadTokens: 0,
+        cacheCreationTokens: 0,
         reasoningTokens: 0,
       },
       subagent: {
@@ -116,6 +118,7 @@ describe('aggregateCollectedUsage', () => {
         outputTokens: 0,
         totalTokens: 0,
         cacheReadTokens: 0,
+        cacheCreationTokens: 0,
         reasoningTokens: 0,
       },
     });

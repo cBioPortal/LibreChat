@@ -255,6 +255,9 @@ jest.mock('@librechat/api', () => ({
   loadSkillStates: jest.fn().mockResolvedValue({ skillStates: {}, defaultActiveOnShare: false }),
   sendFinalChunk: jest.fn(),
   buildCompletionUsage: mockBuildCompletionUsage,
+  resolveRequestSpecModel: jest.fn().mockReturnValue({ ok: true }),
+  withAgentModel: jest.fn((agent, model) => ({ ...agent, model })),
+  validateAgentModel: jest.fn().mockResolvedValue({ isValid: true }),
   createSafeUser: jest.fn().mockReturnValue({ id: 'user-123' }),
   validateRequest: jest
     .fn()
@@ -953,6 +956,88 @@ describe('OpenAIChatCompletionController', () => {
       mockCompletionUsage,
       true,
     );
+  });
+
+  describe('model spec selection', () => {
+    const storedAgent = { id: 'agent-123', name: 'Test Agent', model: 'haiku' };
+
+    beforeEach(() => {
+      const db = require('~/models');
+      db.getAgent.mockResolvedValue({ ...storedAgent });
+    });
+
+    const withSpec = (spec) => {
+      const { validateRequest } = require('@librechat/api');
+      validateRequest.mockReturnValueOnce({
+        request: { model: 'agent-123', messages: [], stream: false, spec },
+      });
+    };
+
+    it('runs the agent with the spec model without mutating the stored agent', async () => {
+      const { initializeAgent, validateAgentModel, resolveRequestSpecModel, withAgentModel } =
+        require('@librechat/api');
+      const db = require('~/models');
+      const fetched = { ...storedAgent };
+      db.getAgent.mockResolvedValueOnce(fetched);
+      const params = { temperature: 0 };
+      resolveRequestSpecModel.mockReturnValueOnce({ ok: true, model: 'sonnet', params });
+      withSpec('sonnet-spec');
+
+      await OpenAIChatCompletionController(req, res);
+
+      expect(resolveRequestSpecModel).toHaveBeenCalledWith(fetched, 'sonnet-spec', undefined);
+      expect(withAgentModel).toHaveBeenCalledWith(fetched, 'sonnet', params);
+      expect(validateAgentModel).toHaveBeenCalledWith(
+        expect.objectContaining({ agent: expect.objectContaining({ model: 'sonnet' }) }),
+      );
+      expect(initializeAgent.mock.calls.at(-1)[0].agent).toMatchObject({ model: 'sonnet' });
+      expect(fetched.model).toBe('haiku');
+      expect(res.status).not.toHaveBeenCalledWith(400);
+    });
+
+    it('passes configured modelSpecs to the resolver', async () => {
+      const { resolveRequestSpecModel } = require('@librechat/api');
+      const list = [{ name: 'sonnet-spec', preset: { agent_id: 'agent-123', model: 'sonnet' } }];
+      req.config.modelSpecs = { list };
+      withSpec('sonnet-spec');
+
+      await OpenAIChatCompletionController(req, res);
+
+      expect(resolveRequestSpecModel).toHaveBeenCalledWith(expect.anything(), 'sonnet-spec', list);
+    });
+
+    it('returns 400 and does not start a run for an invalid spec', async () => {
+      const { initializeAgent, resolveRequestSpecModel } = require('@librechat/api');
+      resolveRequestSpecModel.mockReturnValueOnce({ ok: false, error: 'Unknown model spec: x' });
+      withSpec('x');
+
+      await OpenAIChatCompletionController(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(initializeAgent).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when the spec model is not an allowed model', async () => {
+      const { initializeAgent, resolveRequestSpecModel, validateAgentModel } =
+        require('@librechat/api');
+      resolveRequestSpecModel.mockReturnValueOnce({ ok: true, model: 'not-allowed' });
+      validateAgentModel.mockResolvedValueOnce({ isValid: false, error: { message: 'illegal' } });
+      withSpec('bad-spec');
+
+      await OpenAIChatCompletionController(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(initializeAgent).not.toHaveBeenCalled();
+    });
+
+    it('skips model validation and keeps the stored model without a spec', async () => {
+      const { initializeAgent, validateAgentModel } = require('@librechat/api');
+
+      await OpenAIChatCompletionController(req, res);
+
+      expect(validateAgentModel).not.toHaveBeenCalled();
+      expect(initializeAgent.mock.calls.at(-1)[0].agent).toMatchObject({ model: 'haiku' });
+    });
   });
 
   describe('content filtering', () => {

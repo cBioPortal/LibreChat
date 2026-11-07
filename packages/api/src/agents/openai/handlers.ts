@@ -850,6 +850,10 @@ export function buildCompletionUsage(
     prompt_tokens: total.inputTokens,
     completion_tokens: total.outputTokens,
     total_tokens: total.totalTokens,
+    prompt_tokens_details: {
+      cached_tokens: total.cacheReadTokens,
+      cache_creation_tokens: total.cacheCreationTokens,
+    },
     ...(total.reasoningTokens > 0 && {
       completion_tokens_details: { reasoning_tokens: total.reasoningTokens },
     }),

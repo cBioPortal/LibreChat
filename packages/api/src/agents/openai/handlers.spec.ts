@@ -224,6 +224,7 @@ describe('OpenAI-compatible agent stream handlers', () => {
       prompt_tokens: 125,
       completion_tokens: 50,
       total_tokens: 175,
+      prompt_tokens_details: { cached_tokens: 0, cache_creation_tokens: 0 },
       primary: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 },
       subagent: { prompt_tokens: 25, completion_tokens: 10, total_tokens: 35 },
     });
@@ -246,8 +247,45 @@ describe('OpenAI-compatible agent stream handlers', () => {
       prompt_tokens: 100,
       completion_tokens: 40,
       total_tokens: 140,
+      prompt_tokens_details: { cached_tokens: 0, cache_creation_tokens: 0 },
       primary: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 },
       subagent: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    });
+  });
+
+  it('counts cache reads and writes in prompt tokens for additive providers (Bedrock)', () => {
+    const usage = buildCompletionUsage([
+      {
+        input_tokens: 6,
+        output_tokens: 506,
+        total_tokens: 43602,
+        provider: 'bedrock',
+        input_token_details: { cache_read: 40000, cache_creation: 3090 },
+      },
+    ]);
+
+    expect(usage.prompt_tokens).toBe(43096);
+    expect(usage.prompt_tokens_details).toEqual({
+      cached_tokens: 40000,
+      cache_creation_tokens: 3090,
+    });
+  });
+
+  it('keeps cache tokens inside input_tokens for subset providers (Anthropic)', () => {
+    const usage = buildCompletionUsage([
+      {
+        input_tokens: 43096,
+        output_tokens: 506,
+        total_tokens: 43602,
+        provider: 'anthropic',
+        input_token_details: { cache_read: 40000, cache_creation: 3090 },
+      },
+    ]);
+
+    expect(usage.prompt_tokens).toBe(43096);
+    expect(usage.prompt_tokens_details).toEqual({
+      cached_tokens: 40000,
+      cache_creation_tokens: 3090,
     });
   });
 });
