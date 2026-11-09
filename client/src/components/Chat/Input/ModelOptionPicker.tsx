@@ -55,8 +55,8 @@ function ModelOptionPicker({
         aria-label={localize('com_ui_select_model')}
         data-testid="model-option-picker"
         className={cn(
-          'flex h-9 items-center gap-1 rounded-full px-3 text-sm font-medium text-text-secondary',
-          'hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-opacity-50',
+          'text-text-secondary flex h-9 items-center gap-1 rounded-full px-3 text-sm font-medium',
+          'hover:bg-surface-hover focus-visible:ring-primary focus-visible:ring-opacity-50 focus-visible:ring-2 focus-visible:outline-none',
           'disabled:cursor-not-allowed disabled:opacity-50',
           isOpen && 'bg-surface-hover',
         )}
@@ -71,7 +71,7 @@ function ModelOptionPicker({
         gutter={6}
         portal={true}
         unmountOnHide={true}
-        className="z-50 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-0.5 rounded-xl border border-border-light bg-surface-secondary p-1.5 shadow-lg"
+        className="rounded-theme-menu-panel border-border-light bg-surface-secondary z-50 flex w-72 max-w-[calc(100vw-2rem)] flex-col gap-0.5 border p-1.5 shadow-lg"
       >
         {options.map((option) => {
           const selected = option.name === modelSpec.name;
@@ -84,14 +84,14 @@ function ModelOptionPicker({
                 }
               }}
               className={cn(
-                'flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-left text-text-primary outline-none',
+                'text-text-primary flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 text-left outline-none',
                 'hover:bg-surface-hover data-[active-item]:bg-surface-hover',
               )}
             >
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="text-sm font-medium">{option.modelOption?.label}</span>
                 {option.modelOption?.description && (
-                  <span className="text-xs text-text-secondary">
+                  <span className="text-text-secondary text-xs">
                     {option.modelOption.description}
                   </span>
                 )}

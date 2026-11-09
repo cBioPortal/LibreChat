@@ -45,6 +45,7 @@ jest.mock('~/store', () => ({
 }));
 jest.mock('~/utils', () => ({
   cn: (...classes: Array<string | false | undefined>) => classes.filter(Boolean).join(' '),
+  countSelectorEntries: () => 0,
 }));
 jest.mock('../Menus', () => ({
   OpenSidebar: () => null,

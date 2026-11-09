@@ -108,6 +108,7 @@ jest.mock('~/hooks/Files/useUploadOptions', () => ({
 }));
 
 jest.mock('~/data-provider', () => ({
+  useGetStartupConfig: jest.fn(() => ({ data: undefined })),
   useInteractionHealthCheck: jest.fn(() => jest.fn(async () => true)),
 }));
 

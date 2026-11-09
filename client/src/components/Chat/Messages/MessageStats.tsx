@@ -26,11 +26,11 @@ function Row({ label, value, sub = false }: { label: string; value: string; sub?
     <div
       className={cn(
         'flex items-baseline justify-between gap-6',
-        sub && 'pl-3 text-xs text-text-secondary',
+        sub && 'text-text-secondary pl-3 text-xs',
       )}
     >
       <dt className={cn('whitespace-nowrap', !sub && 'text-text-secondary')}>{label}</dt>
-      <dd className={cn('whitespace-nowrap text-right tabular-nums', !sub && 'text-text-primary')}>
+      <dd className={cn('text-right whitespace-nowrap tabular-nums', !sub && 'text-text-primary')}>
         {value}
       </dd>
     </div>
@@ -77,9 +77,9 @@ function MessageStats({ message, className }: { message: TMessage; className?: s
         aria-label={localize('com_ui_response_details')}
         data-testid="message-stats-button"
         className={cn(
-          'hover-button rounded-lg p-1.5 text-text-secondary-alt',
+          'hover-button text-text-secondary-alt rounded-lg p-1.5',
           'hover:bg-surface-hover hover:text-text-primary',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white',
+          'focus-visible:ring-2 focus-visible:ring-black focus-visible:outline-none dark:focus-visible:ring-white',
           className,
         )}
       >
@@ -92,9 +92,9 @@ function MessageStats({ message, className }: { message: TMessage; className?: s
         unmountOnHide
         finalFocus={disclosureRef}
         aria-label={localize('com_ui_response_details')}
-        className="z-[200] min-w-64 rounded-xl border border-border-medium bg-surface-secondary p-3 text-sm shadow-lg focus:outline-none"
+        className="rounded-theme-popover border-border-medium bg-surface-secondary z-[200] min-w-64 border p-3 text-sm shadow-lg focus:outline-none"
       >
-        <div className="mb-2 text-xs font-medium uppercase tracking-wide text-text-secondary">
+        <div className="text-text-secondary mb-2 text-xs font-medium tracking-wide uppercase">
           {localize('com_ui_response_details')}
         </div>
         <dl className="flex flex-col gap-1.5" data-testid="message-stats">

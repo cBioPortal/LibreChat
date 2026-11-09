@@ -23,6 +23,7 @@ jest.mock('~/hooks/AuthContext', () => ({
 jest.mock('~/data-provider', () => ({
   useGetMessagesByConvoId: () => ({ data: null, isLoading: false, isFetching: false }),
   useProjectQuery: () => ({ data: undefined }),
+  useGetStartupConfig: () => ({ data: undefined }),
 }));
 
 /**

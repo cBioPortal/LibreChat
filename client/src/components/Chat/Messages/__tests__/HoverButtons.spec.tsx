@@ -101,26 +101,7 @@ function renderHoverButtons({
   return container;
 }
 
-describe('HoverButtons edit affordance', () => {
-  it('keeps edit available on an earlier message while a generation is in flight', () => {
-    const container = renderHoverButtons({ isSubmitting: true });
-    const editButton = container.querySelector<HTMLButtonElement>(`#edit-${userMessage.messageId}`);
-
-    expect(editButton).not.toBeNull();
-    expect(editButton).toBeEnabled();
-    expect(editButton).not.toHaveClass('pointer-events-none', 'opacity-0', '!opacity-0');
-  });
-
-  it('reveals on row hover once the generation settles', () => {
-    const container = renderHoverButtons({ isSubmitting: false });
-    const editButton = container.querySelector<HTMLButtonElement>(`#edit-${userMessage.messageId}`);
-
-    expect(editButton).not.toBeNull();
-    expect(editButton).toBeEnabled();
-    expect(editButton).toHaveClass('group-hover:opacity-100');
-    expect(editButton).not.toHaveClass('pointer-events-none', 'opacity-0', '!opacity-0');
-  });
-
+describe('HoverButtons actions', () => {
   it('offers no actions at all on the actively streaming assistant message', () => {
     const assistantMessage = {
       ...userMessage,
@@ -410,16 +391,15 @@ describe('HoverButtons edit affordance', () => {
       thread: [userMessage, summarizedResponse],
     });
 
-    expect(container.querySelector(`#edit-${summarizedResponse.messageId}`)).not.toBeNull();
+    expect(container.querySelector(`#edit-${summarizedResponse.messageId}`)).toBeNull();
     expect(screen.getByTestId('regenerate-generation-button')).toBeEnabled();
     expect(screen.getByTestId('continue-generation-button')).toBeEnabled();
   });
 
   /** An imported or restored conversation can chain one model turn onto another
    *  without a user message between them. That reply has no user turn to replay,
-   *  so the rerun shapes go, but its stored content is saved directly by the
-   *  editor and stays editable. */
-  it('keeps the editor, not the rerun shapes, on a model turn chained onto another', () => {
+   *  so the rerun shapes go. */
+  it('withholds the rerun shapes on a model turn chained onto another', () => {
     const firstReply = {
       ...userMessage,
       messageId: 'assistant-1',
@@ -444,7 +424,7 @@ describe('HoverButtons edit affordance', () => {
       thread: [userMessage, firstReply, chainedReply],
     });
 
-    expect(container.querySelector(`#edit-${chainedReply.messageId}`)).not.toBeNull();
+    expect(container.querySelector(`#edit-${chainedReply.messageId}`)).toBeNull();
     expect(screen.queryByTestId('regenerate-generation-button')).toBeNull();
     expect(screen.queryByTestId('continue-generation-button')).toBeNull();
   });
@@ -470,8 +450,7 @@ describe('HoverButtons edit affordance', () => {
       thread: [rootReply],
     });
 
-    /** Its stored text is still saved directly, so the editor stays. */
-    expect(container.querySelector(`#edit-${rootReply.messageId}`)).not.toBeNull();
+    expect(container.querySelector(`#edit-${rootReply.messageId}`)).toBeNull();
     expect(screen.queryByTestId('regenerate-generation-button')).toBeNull();
     expect(screen.queryByTestId('continue-generation-button')).toBeNull();
   });
@@ -513,9 +492,9 @@ describe('HoverButtons edit affordance', () => {
     expect(screen.queryByTestId('regenerate-generation-button')).toBeNull();
   });
 
-  /** A response whose parts the editor cannot show a field for still opens the
-   *  editor when there is a user turn behind it: its Rerun is the point. */
-  it('keeps the editor on an uneditable response that still has a user turn behind it', () => {
+  /** A response whose parts have no editable field still offers Rerun when there is a
+   *  user turn behind it. */
+  it('keeps rerun controls on an uneditable response that still has a user turn behind it', () => {
     const toolOnlyReply = {
       ...userMessage,
       messageId: 'assistant-1',
@@ -533,7 +512,7 @@ describe('HoverButtons edit affordance', () => {
       thread: [userMessage, toolOnlyReply],
     });
 
-    expect(container.querySelector(`#edit-${toolOnlyReply.messageId}`)).not.toBeNull();
+    expect(container.querySelector(`#edit-${toolOnlyReply.messageId}`)).toBeNull();
     expect(screen.getByTestId('regenerate-generation-button')).toBeEnabled();
   });
 
@@ -563,7 +542,7 @@ describe('HoverButtons edit affordance', () => {
       latestMessageId: compactionMessage.messageId,
     });
 
-    expect(container.querySelector(`#edit-${compactionMessage.messageId}`)).not.toBeNull();
+    expect(container.querySelector(`#edit-${compactionMessage.messageId}`)).toBeNull();
     expect(screen.getByTestId('regenerate-generation-button')).toBeEnabled();
   });
 });

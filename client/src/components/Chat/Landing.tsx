@@ -15,16 +15,9 @@ import {
   getModelSpecIconURL,
   getConvoSwitchLogic,
 } from '~/utils';
-import {
-  useLocalize,
-  useAuthContext,
-  useGreeting,
-  useDefaultConvo,
-  useNewConvo,
-} from '~/hooks';
+import { useLocalize, useAuthContext, useGreeting, useDefaultConvo, useNewConvo } from '~/hooks';
 import store from '~/store';
 import { useChatSettings } from '~/Providers/ChatSettingsContext';
-import AgentContact from '~/components/Agents/AgentContact';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
 
 const containerClassName =
@@ -116,9 +109,15 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
         currentSpec?.description ||
         brandedSpecDescription) ??
       '');
-  const descriptionIsHTML = isHtmlDescription(description);
-  const selectedAgent =
-    isAgent && conversation?.agent_id != null ? agentsMap?.[conversation.agent_id] : undefined;
+  const trailingLink = description.match(
+    /\s*(?:<br\s*\/?>\s*)*<a\s+[^>]*href=["'](https?:\/\/[^"']*)["'][^>]*>([\s\S]*?)<\/a>\s*$/i,
+  );
+  const learnMoreUrl = trailingLink?.[1] ?? '';
+  const learnMoreText = trailingLink?.[2]?.replace(/<[^>]*>/g, '').trim() ?? '';
+  const bodyDescription = trailingLink
+    ? description.slice(0, trailingLink.index).trim()
+    : description;
+  const descriptionIsHTML = isHtmlDescription(bodyDescription);
 
   const customWelcome =
     typeof startupConfig?.interface?.customWelcome === 'string'
@@ -221,7 +220,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     if (contentRef.current) {
       setContentHeight(contentRef.current.offsetHeight);
     }
-  }, [lineCount, description, selectedAgent, remScale]);
+  }, [lineCount, description, remScale]);
 
   const getDynamicMargin = useMemo(() => {
     let margin = 'mb-0';
@@ -323,28 +322,34 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
         </div>
         <Description
           allowMedia
-          description={description}
+          description={bodyDescription}
           className={
             descriptionIsHTML
               ? 'animate-fadeIn text-text-primary mt-4 flex max-w-md items-center justify-center gap-2 text-center text-sm font-normal [&_img]:inline-block [&_img]:h-4 [&_img]:w-4'
               : `animate-fadeIn mt-4 max-w-md text-center text-sm font-normal ${isTemporary ? 'text-text-secondary' : 'text-text-primary'}`
           }
         />
-        {otherSpec && !isTemporary && (
+        {!isTemporary && (learnMoreUrl || otherSpec) && (
           <div className="animate-fadeIn mt-4 flex flex-row items-center gap-3">
-            <button
-              onClick={handleSwitchAgent}
-              className="rounded-full border border-border-light bg-surface-secondary px-4 py-2 text-sm font-medium text-text-primary transition-colors duration-200 hover:bg-surface-tertiary"
-            >
-              {localize('com_ui_switch_agent')}
-            </button>
+            {learnMoreUrl && (
+              <a
+                href={learnMoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-gray-600 px-4 py-2 text-sm font-medium text-gray-50 transition-colors duration-200 hover:bg-gray-700"
+              >
+                {learnMoreText || 'Learn more'}
+              </a>
+            )}
+            {otherSpec && (
+              <button
+                onClick={handleSwitchAgent}
+                className="border-border-light bg-surface-secondary text-text-primary hover:bg-surface-tertiary rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-200"
+              >
+                {localize('com_ui_switch_agent')}
+              </button>
+            )}
           </div>
-        )}
-        {selectedAgent && !isTemporary && (
-          <AgentContact
-            agent={selectedAgent}
-            className="animate-fadeIn mt-2 max-w-md justify-center text-center text-sm"
-          />
         )}
       </div>
     </div>

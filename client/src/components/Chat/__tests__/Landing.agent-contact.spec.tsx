@@ -21,7 +21,16 @@ jest.mock('librechat-data-provider', () => ({
     azureOpenAI: 'azureOpenAI',
     openAI: 'openAI',
   },
+  isAgentsEndpoint: (endpoint?: string | null) => endpoint === 'agents',
 }));
+
+jest.mock('~/store', () => {
+  const { atom } = jest.requireActual('recoil');
+  return {
+    __esModule: true,
+    default: { modularChat: atom({ key: 'landingTestModularChat', default: false }) },
+  };
+});
 
 jest.mock('@librechat/client', () => ({
   BirthdayIcon: () => <span data-testid="birthday-icon" />,
@@ -44,6 +53,8 @@ jest.mock('~/data-provider', () => ({
 jest.mock('~/hooks', () => ({
   useAuthContext: () => ({ user: undefined }),
   useGreeting: () => 'Welcome',
+  useDefaultConvo: () => jest.fn(),
+  useNewConvo: () => ({ newConversation: jest.fn() }),
   useLocalize: () => (key: string) => {
     const translations: Record<string, string> = {
       com_agents_contact: 'Contact',
@@ -63,6 +74,8 @@ jest.mock('~/utils', () => ({
   createConfigHtmlSanitizer: () => (html: string) => html,
   getIconEndpoint: ({ endpoint }: { endpoint: string }) => endpoint,
   getModelSpec: () => undefined,
+  getModelSpecIconURL: () => undefined,
+  getConvoSwitchLogic: () => ({}),
   getEntity: ({
     endpoint,
     agentsMap,
@@ -105,7 +118,7 @@ describe('Landing agent contact', () => {
     mockAssistantMap = undefined;
   });
 
-  it('shows contact for the selected agent from agentsMap', () => {
+  it('does not show the agent contact', () => {
     mockConversation = {
       endpoint: 'agents',
       agent_id: 'agent-1',
@@ -123,12 +136,11 @@ describe('Landing agent contact', () => {
 
     expect(screen.getByText('Portal Remote Agent')).toBeInTheDocument();
     expect(screen.getByText('Remote Agent Showcase')).toBeInTheDocument();
-    expect(screen.getByText('Contact:')).toBeInTheDocument();
-    expect(screen.getByText('Owner User')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Owner User' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Contact:')).not.toBeInTheDocument();
+    expect(screen.queryByText('Owner User')).not.toBeInTheDocument();
   });
 
-  it('renders the email link without inline baseline space beside the contact label', () => {
+  it('shows a trailing description link as a button and the text without markup', () => {
     mockConversation = {
       endpoint: 'agents',
       agent_id: 'agent-1',
@@ -136,19 +148,37 @@ describe('Landing agent contact', () => {
     mockAgentsMap = {
       'agent-1': {
         id: 'agent-1',
-        name: 'LibreChat',
-        description: 'Contact Danny if you see any errors',
-        support_contact: { email: 'messagedaniel@pm.me' },
+        name: 'Portal Agent',
+        description:
+          'Ask the agent about studies. <a href="https://docs.example.org/chat" target="_blank">Learn more</a>',
       },
     };
 
     renderLanding();
 
-    const link = screen.getByRole('link', { name: 'messagedaniel@pm.me' });
-    expect(link).toHaveAttribute('href', 'mailto:messagedaniel@pm.me');
-    expect(link).toHaveClass('block');
-    expect(link).not.toHaveClass('inline-block');
-    expect(screen.getByText('Contact:').parentElement).toHaveClass('items-center');
+    expect(screen.getByText('Ask the agent about studies.')).toBeInTheDocument();
+    expect(screen.queryByText(/<a href/)).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Learn more' });
+    expect(link).toHaveAttribute('href', 'https://docs.example.org/chat');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('keeps a non-http description link out of the button', () => {
+    mockConversation = {
+      endpoint: 'agents',
+      agent_id: 'agent-1',
+    };
+    mockAgentsMap = {
+      'agent-1': {
+        id: 'agent-1',
+        name: 'Portal Agent',
+        description: 'Ask the agent. <a href="javascript:alert(1)">Learn more</a>',
+      },
+    };
+
+    renderLanding();
+
+    expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
   });
 
   it('does not show contact when the selected agent is missing from agentsMap', () => {
