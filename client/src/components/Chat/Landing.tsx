@@ -226,7 +226,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     let margin = 'mb-0';
 
     if (lineCount > 2 || (description && description.length > 100)) {
-      margin = 'mb-10';
+      margin = 'mb-6';
     } else if (lineCount > 1 || (description && description.length > 0)) {
       margin = 'mb-6';
     } else if (textHasMultipleLines) {
@@ -234,9 +234,9 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     }
 
     if (contentHeight > 200) {
-      margin = 'mb-16';
+      margin = 'mb-8';
     } else if (contentHeight > 150) {
-      margin = 'mb-12';
+      margin = 'mb-8';
     }
 
     return margin;
@@ -253,7 +253,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
 
   return (
     <div
-      className={`flex w-full shrink-0 transform-gpu flex-col items-center justify-start pb-6 transition-all duration-200 ${centerFormOnLanding ? 'pt-2 sm:pt-4' : 'pt-4'} ${getDynamicMargin}`}
+      className={`flex w-full shrink-0 transform-gpu flex-col items-center justify-start pb-4 transition-all duration-200 ${centerFormOnLanding ? 'pt-2 sm:pt-4' : 'pt-4'} ${getDynamicMargin}`}
     >
       <div ref={contentRef} className="flex flex-col items-center gap-0 p-2">
         <div
