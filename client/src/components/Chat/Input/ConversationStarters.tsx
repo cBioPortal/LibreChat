@@ -110,7 +110,7 @@ const ConversationStarters = () => {
   const assistantMap = useAssistantsMapContext();
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { data: startupConfig } = useGetStartupConfig();
-  const [showExamples, setShowExamples] = useState(false);
+  const [showExamples, setShowExamples] = useState(true);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const endpointType = useMemo(() => {
@@ -205,7 +205,7 @@ const ConversationStarters = () => {
 
   if (conversationStarterCategories.length) {
     return (
-      <div className="mt-6 mb-5 flex w-full flex-col items-center px-4">
+      <div className="mt-6 flex w-full flex-col items-center px-4">
         <button
           type="button"
           onClick={() => setShowExamples((value) => !value)}
@@ -215,7 +215,7 @@ const ConversationStarters = () => {
           {showExamples ? 'Hide examples' : 'Show examples'}
         </button>
         {showExamples && (
-          <div className="scrollbar-thin mt-4 flex max-h-[45vh] w-full flex-col gap-3 overflow-y-auto sm:w-11/12 lg:w-4/5 xl:w-2/3">
+          <div className="mt-5 flex w-full flex-col gap-3 sm:w-11/12 lg:w-4/5 xl:w-2/3">
             {conversationStarterCategories.map((category) => {
               const isExpanded = expandedCategories.has(category.label);
               const Icon =

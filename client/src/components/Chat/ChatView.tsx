@@ -211,7 +211,6 @@ function ChatPane({
                             isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
                           )}
                         >
-                          {isLandingPage && <ConversationStarters />}
                           {isSubagentThreadReadOnly ? (
                             <div
                               className="text-text-secondary mx-auto w-full max-w-3xl px-4 py-3 text-center text-sm xl:max-w-4xl"
@@ -234,6 +233,7 @@ function ChatPane({
                             />
                           )}
                           {isLandingPage && <LimitBadge />}
+                          {isLandingPage && <ConversationStarters />}
                           {/* The generic disclaimer and the policy links are the
                               welcome screen's; a deployment's own footer stays
                               with the conversation that always showed it. */}
