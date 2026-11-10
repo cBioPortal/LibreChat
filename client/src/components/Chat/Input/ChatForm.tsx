@@ -702,7 +702,6 @@ const ChatForm = memo(function ChatForm({
   const bottomClearance = composerClearance({
     isLandingPage,
     footerBelow,
-    floating: centerFormOnLanding && !isSubmitting,
   });
 
   /** Answer mode, then during-run steering or queueing (a run in flight, or a
