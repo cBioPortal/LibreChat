@@ -205,7 +205,7 @@ const ConversationStarters = () => {
 
   if (conversationStarterCategories.length) {
     return (
-      <div className="mt-6 flex w-full flex-col items-center px-4">
+      <div className="mt-6 mb-5 flex w-full flex-col items-center px-4">
         <button
           type="button"
           onClick={() => setShowExamples((value) => !value)}
