@@ -780,7 +780,7 @@ export default function ActivityPhaseGroup({
       <>
         <SearchVerticals attachments={attachments} />
         <AttachmentGroup attachments={attachments} />
-        <MCPAppViews attachments={attachments} />
+        <MCPAppViews attachments={attachments} autoOpen />
       </>
     ) : null;
   if (!label && !isLive) {

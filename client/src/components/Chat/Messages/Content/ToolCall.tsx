@@ -512,7 +512,7 @@ export default function ToolCall({
       {!hideAttachments && attachments && attachments.length > 0 && (
         <>
           <AttachmentGroup attachments={attachments} />
-          <MCPAppViews attachments={attachments} />
+          <MCPAppViews attachments={attachments} autoOpen />
         </>
       )}
     </>

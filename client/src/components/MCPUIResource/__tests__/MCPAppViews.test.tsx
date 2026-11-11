@@ -4,7 +4,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { TAttachment, TStartupConfig, UIResource } from 'librechat-data-provider';
 import type { MCPAppFrameState } from '~/hooks/MCP';
 import { MCPAppsPolicyProvider } from '~/Providers/MCPAppsPolicyContext';
-import { MessagesSubmittingContext, MessagesViewContext } from '~/Providers/MessagesViewContext';
 import { MCPAppSuppressionContext, MCPAppViews } from '../MCPAppViews';
 import { useAppBridge, useMCPAppFrame } from '~/hooks/MCP';
 
@@ -158,15 +157,13 @@ describe('MCPAppViews', () => {
     );
   });
 
-  it('opens a view that arrives while a response is streaming', () => {
+  it('opens a view on mount when autoOpen is set', () => {
     const attachments = [
       attachment({ toolCallId: 'live', agentId: 'agent', stepId: 'step' }, [app({})]),
     ];
     const { container } = render(
       <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
-        <MessagesSubmittingContext.Provider value={true}>
-          <MCPAppViews attachments={attachments} />
-        </MessagesSubmittingContext.Provider>
+        <MCPAppViews attachments={attachments} autoOpen />
       </MCPAppsPolicyProvider>,
     );
 
@@ -174,15 +171,13 @@ describe('MCPAppViews', () => {
     expect(screen.queryByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeNull();
   });
 
-  it('keeps the Open control for a view restored while idle', () => {
+  it('keeps the Open control when autoOpen is not set', () => {
     const attachments = [
       attachment({ toolCallId: 'restored', agentId: 'agent', stepId: 'step' }, [app({})]),
     ];
     const { container } = render(
       <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
-        <MessagesSubmittingContext.Provider value={false}>
-          <MCPAppViews attachments={attachments} />
-        </MessagesSubmittingContext.Provider>
+        <MCPAppViews attachments={attachments} />
       </MCPAppsPolicyProvider>,
     );
 
@@ -190,23 +185,7 @@ describe('MCPAppViews', () => {
     expect(screen.getByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeTruthy();
   });
 
-  it('opens views in a shared read-only transcript', () => {
-    const attachments = [
-      attachment({ toolCallId: 'shared', agentId: 'agent', stepId: 'step' }, [app({})]),
-    ];
-    const { container } = render(
-      <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
-        <MessagesViewContext.Provider value={{ readOnly: true } as never}>
-          <MCPAppViews attachments={attachments} />
-        </MessagesViewContext.Provider>
-      </MCPAppsPolicyProvider>,
-    );
-
-    expect(container.querySelectorAll('iframe[data-sandbox-url]')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeNull();
-  });
-
-  it('does not open more streamed views than the active-view limit', () => {
+  it('does not auto-open more views than the active-view limit', () => {
     const attachments = [
       attachment({ toolCallId: 'many', agentId: 'agent', stepId: 'step' }, [
         app({ resourceId: 'a' }),
@@ -217,9 +196,7 @@ describe('MCPAppViews', () => {
     ];
     const { container } = render(
       <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
-        <MessagesSubmittingContext.Provider value={true}>
-          <MCPAppViews attachments={attachments} />
-        </MessagesSubmittingContext.Provider>
+        <MCPAppViews attachments={attachments} autoOpen />
       </MCPAppsPolicyProvider>,
     );
 

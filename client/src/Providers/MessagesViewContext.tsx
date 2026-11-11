@@ -154,11 +154,6 @@ export function useIsMessagesViewReadOnly(): boolean {
   return useContext(MessagesViewContext)?.readOnly ?? true;
 }
 
-/** True only inside a provided read-only view, such as a shared conversation. */
-export function useIsProvidedReadOnlyMessagesView(): boolean {
-  return useContext(MessagesViewContext)?.readOnly === true;
-}
-
 /** Hook for components that only need conversation data */
 export function useMessagesConversation() {
   const { conversation, conversationId } = useMessagesViewContext();

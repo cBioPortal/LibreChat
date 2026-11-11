@@ -798,7 +798,7 @@ export default function ToolCallGroup({
         <>
           <SearchVerticals attachments={groupAttachments} />
           <AttachmentGroup attachments={groupAttachments} />
-          <MCPAppViews attachments={groupAttachments} />
+          <MCPAppViews attachments={groupAttachments} autoOpen />
         </>
       )}
     </div>

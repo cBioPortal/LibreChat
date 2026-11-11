@@ -12,11 +12,7 @@ import type { TAttachment, UIResource } from 'librechat-data-provider';
 import type { MCPAppResourceOccurrence } from '~/utils/mcpApps';
 import { useMCPAppsHost, useMCPAppViewAtCapacity } from '~/Providers/MCPAppsPolicyContext';
 import { selectToolCallUIResources, getInlineResourceHtml } from '~/utils/mcpApps';
-import {
-  useIsMessagesViewReadOnly,
-  useIsProvidedReadOnlyMessagesView,
-  useMessagesIsSubmitting,
-} from '~/Providers/MessagesViewContext';
+import { useIsMessagesViewReadOnly } from '~/Providers/MessagesViewContext';
 import { MCPAppApproval, useMCPAppApproval } from '~/hooks/MCP/approval';
 import { useAppBridge, useMCPAppFrame } from '~/hooks/MCP';
 import { MCPAppFrame } from './MCPAppFrame';
@@ -139,17 +135,16 @@ const MCPAppView = React.memo(function MCPAppView({
   app,
   userId,
   ordinal,
+  autoOpen,
 }: {
   app: UIResource;
   userId: string;
   ordinal: number;
+  autoOpen?: boolean;
 }) {
   const localize = useLocalize();
   const { reserveView, releaseView } = useMCPAppsHost();
   const readOnly = useIsMessagesViewReadOnly();
-  const isSubmitting = useMessagesIsSubmitting();
-  const isSharedView = useIsProvidedReadOnlyMessagesView();
-  const opensOnMount = useRef(isSubmitting || isSharedView);
   const unavailable = readOnly && !getInlineResourceHtml(app);
   const viewKey = useId();
   const [opened, setOpened] = useState(false);
@@ -201,10 +196,10 @@ const MCPAppView = React.memo(function MCPAppView({
     },
     [unavailable, reserveView, viewKey],
   );
-  // A result that arrives while a response is streaming opens itself, as does every view in a
-  // shared transcript. Views restored into the live chat mount while idle and keep the Open control.
+  // With `autoOpen` a view opens itself on mount; the Open control remains the way back after
+  // closing one or when the active-view limit leaves a view closed.
   useEffect(() => {
-    if (opensOnMount.current) {
+    if (autoOpen) {
       open(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,10 +252,12 @@ export function MCPAppViews({
   attachments,
   resources,
   ordinalStart = 1,
+  autoOpen = false,
 }: {
   attachments?: TAttachment[];
   resources?: MCPAppResourceOccurrence[];
   ordinalStart?: number;
+  autoOpen?: boolean;
 }) {
   const suppressedAttachments = React.useContext(MCPAppSuppressionContext);
   const { policy, userId } = useMCPAppsHost();
@@ -290,6 +287,7 @@ export function MCPAppViews({
           app={resource}
           userId={userId}
           ordinal={ordinalStart + index}
+          autoOpen={autoOpen}
         />
       ))}
     </>

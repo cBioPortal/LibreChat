@@ -1589,6 +1589,7 @@ const ContentParts = memo(function ContentParts(props: ContentPartsProps) {
               key={`app-${appRenderScope}-${resource.key}`}
               resources={[resource]}
               ordinalStart={ordinal}
+              autoOpen
             />,
           );
         }
