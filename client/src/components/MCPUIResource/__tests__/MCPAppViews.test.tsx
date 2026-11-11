@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { TAttachment, TStartupConfig, UIResource } from 'librechat-data-provider';
 import type { MCPAppFrameState } from '~/hooks/MCP';
 import { MCPAppsPolicyProvider } from '~/Providers/MCPAppsPolicyContext';
-import { MessagesSubmittingContext } from '~/Providers/MessagesViewContext';
+import { MessagesSubmittingContext, MessagesViewContext } from '~/Providers/MessagesViewContext';
 import { MCPAppSuppressionContext, MCPAppViews } from '../MCPAppViews';
 import { useAppBridge, useMCPAppFrame } from '~/hooks/MCP';
 
@@ -188,6 +188,22 @@ describe('MCPAppViews', () => {
 
     expect(container.querySelectorAll('iframe[data-sandbox-url]')).toHaveLength(0);
     expect(screen.getByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeTruthy();
+  });
+
+  it('opens views in a shared read-only transcript', () => {
+    const attachments = [
+      attachment({ toolCallId: 'shared', agentId: 'agent', stepId: 'step' }, [app({})]),
+    ];
+    const { container } = render(
+      <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
+        <MessagesViewContext.Provider value={{ readOnly: true } as never}>
+          <MCPAppViews attachments={attachments} />
+        </MessagesViewContext.Provider>
+      </MCPAppsPolicyProvider>,
+    );
+
+    expect(container.querySelectorAll('iframe[data-sandbox-url]')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeNull();
   });
 
   it('does not open more streamed views than the active-view limit', () => {

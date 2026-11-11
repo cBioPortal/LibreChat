@@ -14,6 +14,7 @@ import { useMCPAppsHost, useMCPAppViewAtCapacity } from '~/Providers/MCPAppsPoli
 import { selectToolCallUIResources, getInlineResourceHtml } from '~/utils/mcpApps';
 import {
   useIsMessagesViewReadOnly,
+  useIsProvidedReadOnlyMessagesView,
   useMessagesIsSubmitting,
 } from '~/Providers/MessagesViewContext';
 import { MCPAppApproval, useMCPAppApproval } from '~/hooks/MCP/approval';
@@ -147,7 +148,8 @@ const MCPAppView = React.memo(function MCPAppView({
   const { reserveView, releaseView } = useMCPAppsHost();
   const readOnly = useIsMessagesViewReadOnly();
   const isSubmitting = useMessagesIsSubmitting();
-  const mountedWhileSubmitting = useRef(isSubmitting);
+  const isSharedView = useIsProvidedReadOnlyMessagesView();
+  const opensOnMount = useRef(isSubmitting || isSharedView);
   const unavailable = readOnly && !getInlineResourceHtml(app);
   const viewKey = useId();
   const [opened, setOpened] = useState(false);
@@ -199,10 +201,10 @@ const MCPAppView = React.memo(function MCPAppView({
     },
     [unavailable, reserveView, viewKey],
   );
-  // A result that arrives while a response is streaming opens itself. Views restored from
-  // history mount while idle and keep the explicit Open control.
+  // A result that arrives while a response is streaming opens itself, as does every view in a
+  // shared transcript. Views restored into the live chat mount while idle and keep the Open control.
   useEffect(() => {
-    if (mountedWhileSubmitting.current) {
+    if (opensOnMount.current) {
       open(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
