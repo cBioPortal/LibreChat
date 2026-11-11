@@ -202,8 +202,10 @@ export function useAppBridge({
     const iframe = iframeRef.current;
     const serverName = resource.serverName;
     if (!iframe || !serverName || !active) return;
-    const serverBinding = resource.serverBinding;
-    if (!serverBinding) {
+    // A read-only View redraws a persisted document and makes no authenticated requests, so it
+    // needs no binding to the owner's MCP connection.
+    const serverBinding = resource.serverBinding ?? '';
+    if (!serverBinding && !readOnly) {
       iframe.removeAttribute('src');
       iframe.removeAttribute('allow');
       onFailedRef.current?.();
@@ -493,7 +495,9 @@ export function useAppBridge({
         await queryClient.fetchQuery({
           queryKey: resourceQueryKey,
           queryFn: async ({ signal }) => {
-            await validateMCPAppBinding(serverName, serverBinding, signal);
+            if (!readOnly) {
+              await validateMCPAppBinding(serverName, serverBinding, signal);
+            }
             return true;
           },
           staleTime: 0,

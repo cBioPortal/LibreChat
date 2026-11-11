@@ -5,6 +5,7 @@ import {
   Constants,
   ContentTypes,
   FileSources,
+  isMcpAppMimeType,
   isConfiguredSender,
 } from 'librechat-data-provider';
 import type { FilterQuery, Model } from 'mongoose';
@@ -162,10 +163,63 @@ function sanitizeSharedFiles(files: unknown): t.SharedFile[] | undefined {
   return sanitized.length > 0 ? sanitized : undefined;
 }
 
+/**
+ * Fields of a persisted MCP App View that a shared link keeps. The App's stored document and tool
+ * result are enough to redraw it read-only; the server binding and resource id tie it to the
+ * owner's MCP connection and stay private.
+ */
+const SHARED_MCP_APP_FIELDS = [
+  'uri',
+  'mimeType',
+  'text',
+  'blob',
+  'serverName',
+  'toolName',
+  'toolArgs',
+  'content',
+  'structuredContent',
+  'isError',
+  'resultMeta',
+  'csp',
+  'permissions',
+] as const;
+
+function sanitizeSharedMCPAppResources(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((resource) => {
+    if (!resource || typeof resource !== 'object') {
+      return [];
+    }
+    const source = resource as Record<string, unknown>;
+    const hasDocument = typeof source.text === 'string' || typeof source.blob === 'string';
+    if (
+      !hasDocument ||
+      typeof source.toolName !== 'string' ||
+      typeof source.serverName !== 'string' ||
+      !isMcpAppMimeType(source.mimeType as string | undefined)
+    ) {
+      return [];
+    }
+    const kept: Record<string, unknown> = {};
+    for (const field of SHARED_MCP_APP_FIELDS) {
+      if (source[field] !== undefined) {
+        kept[field] = source[field];
+      }
+    }
+    return [kept];
+  });
+}
+
 function sanitizeSharedAttachments(attachments: unknown): t.SharedFile[] | undefined {
-  const sanitized = sanitizeSharedFiles(attachments)?.filter(
-    (attachment) => attachment.type !== Tools.ui_resources,
-  );
+  const sanitized = sanitizeSharedFiles(attachments)?.flatMap((attachment) => {
+    if (attachment.type !== Tools.ui_resources) {
+      return [attachment];
+    }
+    const resources = sanitizeSharedMCPAppResources(attachment[Tools.ui_resources]);
+    return resources.length > 0 ? [{ ...attachment, [Tools.ui_resources]: resources }] : [];
+  });
   return sanitized && sanitized.length > 0 ? sanitized : undefined;
 }
 

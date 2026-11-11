@@ -894,6 +894,58 @@ describe('Share Methods', () => {
       ]);
     });
 
+    test('keeps persisted MCP App views in shares without their server binding or id', async () => {
+      const userId = new mongoose.Types.ObjectId().toString();
+      const conversationId = `conv_${nanoid()}`;
+      const shareId = `share_${nanoid()}`;
+      const app = {
+        uri: 'ui://demo/view',
+        mimeType: 'text/html;profile=mcp-app',
+        text: '<p>chart</p>',
+        serverName: 'demo',
+        serverBinding: 'binding-secret',
+        resourceId: 'internal-id',
+        toolName: 'show_chart',
+        toolArgs: { gene: 'KRAS' },
+        structuredContent: { rows: [1, 2] },
+      };
+      const message = await Message.create({
+        messageId: `msg_${nanoid()}`,
+        conversationId,
+        user: userId,
+        text: 'result',
+        isCreatedByUser: false,
+        attachments: [
+          {
+            type: Tools.ui_resources,
+            toolCallId: 'call-1',
+            [Tools.ui_resources]: [
+              app,
+              { ...app, uri: 'ui://demo/legacy', mimeType: 'application/vnd.mcp-ui.remote-dom+javascript' },
+              { ...app, uri: 'ui://demo/uri-only', text: undefined },
+            ],
+          },
+        ],
+      });
+      await SharedLink.create({ shareId, conversationId, user: userId, messages: [message._id] });
+
+      const result = await shareMethods.getSharedMessages(shareId);
+
+      const attachment = result?.messages[0].attachments?.[0] as Record<string, unknown>;
+      expect(attachment.type).toBe(Tools.ui_resources);
+      const resources = attachment[Tools.ui_resources] as Record<string, unknown>[];
+      expect(resources).toHaveLength(1);
+      expect(resources[0]).toEqual({
+        uri: 'ui://demo/view',
+        mimeType: 'text/html;profile=mcp-app',
+        text: '<p>chart</p>',
+        serverName: 'demo',
+        toolName: 'show_chart',
+        toolArgs: { gene: 'KRAS' },
+        structuredContent: { rows: [1, 2] },
+      });
+    });
+
     test.each([true, null])(
       'matches text and content renderers for author flag %s in public shares',
       async (authorFlag) => {

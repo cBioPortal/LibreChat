@@ -951,14 +951,25 @@ describe('useAppBridge', () => {
       await flush();
 
       expect(mockFetchHtml).not.toHaveBeenCalled();
-      expect(mockValidateBinding).toHaveBeenCalledWith(
-        'demo',
-        'binding-demo',
-        expect.any(AbortSignal),
-      );
+      expect(mockValidateBinding).not.toHaveBeenCalled();
       expect(latest().resourceReady[0].html).toBe('<p>inline</p>');
       expect(latest().capabilities.serverTools).toBeUndefined();
       expect(latest().capabilities.openLinks).toEqual({});
+    });
+
+    it('runs shared inline html that carries no server binding', async () => {
+      mockReadOnly.mockReturnValue(true);
+      const onFailed = jest.fn();
+      mountBridge(makeResource({ text: '<p>shared</p>', serverBinding: undefined }), client, {
+        onFailed,
+      });
+      await flush();
+      await act(async () => latest().emit('sandboxready'));
+      await flush();
+
+      expect(mockValidateBinding).not.toHaveBeenCalled();
+      expect(onFailed).not.toHaveBeenCalled();
+      expect(latest().resourceReady[0].html).toBe('<p>shared</p>');
     });
   });
 
