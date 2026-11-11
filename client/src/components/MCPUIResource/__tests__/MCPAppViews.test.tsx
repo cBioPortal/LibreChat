@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { TAttachment, TStartupConfig, UIResource } from 'librechat-data-provider';
 import type { MCPAppFrameState } from '~/hooks/MCP';
 import { MCPAppsPolicyProvider } from '~/Providers/MCPAppsPolicyContext';
+import { MessagesSubmittingContext } from '~/Providers/MessagesViewContext';
 import { MCPAppSuppressionContext, MCPAppViews } from '../MCPAppViews';
 import { useAppBridge, useMCPAppFrame } from '~/hooks/MCP';
 
@@ -154,6 +155,61 @@ describe('MCPAppViews', () => {
           structuredContent: { owner: 'beta' },
         }),
       }),
+    );
+  });
+
+  it('opens a view that arrives while a response is streaming', () => {
+    const attachments = [
+      attachment({ toolCallId: 'live', agentId: 'agent', stepId: 'step' }, [app({})]),
+    ];
+    const { container } = render(
+      <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
+        <MessagesSubmittingContext.Provider value={true}>
+          <MCPAppViews attachments={attachments} />
+        </MessagesSubmittingContext.Provider>
+      </MCPAppsPolicyProvider>,
+    );
+
+    expect(container.querySelectorAll('iframe[data-sandbox-url]')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeNull();
+  });
+
+  it('keeps the Open control for a view restored while idle', () => {
+    const attachments = [
+      attachment({ toolCallId: 'restored', agentId: 'agent', stepId: 'step' }, [app({})]),
+    ];
+    const { container } = render(
+      <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
+        <MessagesSubmittingContext.Provider value={false}>
+          <MCPAppViews attachments={attachments} />
+        </MessagesSubmittingContext.Provider>
+      </MCPAppsPolicyProvider>,
+    );
+
+    expect(container.querySelectorAll('iframe[data-sandbox-url]')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: /com_ui_mcp_app_open_named/ })).toBeTruthy();
+  });
+
+  it('does not open more streamed views than the active-view limit', () => {
+    const attachments = [
+      attachment({ toolCallId: 'many', agentId: 'agent', stepId: 'step' }, [
+        app({ resourceId: 'a' }),
+        app({ resourceId: 'b' }),
+        app({ resourceId: 'c' }),
+        app({ resourceId: 'd' }),
+      ]),
+    ];
+    const { container } = render(
+      <MCPAppsPolicyProvider startupConfig={enabledConfig} ready userId="user-1">
+        <MessagesSubmittingContext.Provider value={true}>
+          <MCPAppViews attachments={attachments} />
+        </MessagesSubmittingContext.Provider>
+      </MCPAppsPolicyProvider>,
+    );
+
+    expect(container.querySelectorAll('iframe[data-sandbox-url]').length).toBeLessThanOrEqual(3);
+    expect(screen.getAllByRole('button', { name: /com_ui_mcp_app_open_named/ })).toHaveLength(
+      4 - container.querySelectorAll('iframe[data-sandbox-url]').length,
     );
   });
 

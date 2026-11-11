@@ -12,7 +12,10 @@ import type { TAttachment, UIResource } from 'librechat-data-provider';
 import type { MCPAppResourceOccurrence } from '~/utils/mcpApps';
 import { useMCPAppsHost, useMCPAppViewAtCapacity } from '~/Providers/MCPAppsPolicyContext';
 import { selectToolCallUIResources, getInlineResourceHtml } from '~/utils/mcpApps';
-import { useIsMessagesViewReadOnly } from '~/Providers/MessagesViewContext';
+import {
+  useIsMessagesViewReadOnly,
+  useMessagesIsSubmitting,
+} from '~/Providers/MessagesViewContext';
 import { MCPAppApproval, useMCPAppApproval } from '~/hooks/MCP/approval';
 import { useAppBridge, useMCPAppFrame } from '~/hooks/MCP';
 import { MCPAppFrame } from './MCPAppFrame';
@@ -143,6 +146,8 @@ const MCPAppView = React.memo(function MCPAppView({
   const localize = useLocalize();
   const { reserveView, releaseView } = useMCPAppsHost();
   const readOnly = useIsMessagesViewReadOnly();
+  const isSubmitting = useMessagesIsSubmitting();
+  const mountedWhileSubmitting = useRef(isSubmitting);
   const unavailable = readOnly && !getInlineResourceHtml(app);
   const viewKey = useId();
   const [opened, setOpened] = useState(false);
@@ -180,17 +185,28 @@ const MCPAppView = React.memo(function MCPAppView({
     },
     [releaseView, viewKey],
   );
-  const open = () => {
-    if (unavailable) return;
-    const reserved = reserveView(viewKey);
-    if (!reserved) {
-      setAtCapacity(true);
-      return;
+  const open = useCallback(
+    (userInitiated = true) => {
+      if (unavailable) return;
+      const reserved = reserveView(viewKey);
+      if (!reserved) {
+        setAtCapacity(true);
+        return;
+      }
+      focusAfterTransition.current = userInitiated ? 'close' : null;
+      setAtCapacity(false);
+      setOpened(true);
+    },
+    [unavailable, reserveView, viewKey],
+  );
+  // A result that arrives while a response is streaming opens itself. Views restored from
+  // history mount while idle and keep the explicit Open control.
+  useEffect(() => {
+    if (mountedWhileSubmitting.current) {
+      open(false);
     }
-    focusAfterTransition.current = 'close';
-    setAtCapacity(false);
-    setOpened(true);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   if (unavailable) {
     return (
       <div
@@ -220,7 +236,7 @@ const MCPAppView = React.memo(function MCPAppView({
             variant="outline"
             size="sm"
             ref={openButtonRef}
-            onClick={open}
+            onClick={() => open()}
             aria-label={localize('com_ui_mcp_app_open_named', {
               0: app.toolName,
               1: String(ordinal),
